@@ -9,6 +9,7 @@ const lirc = require('lirc-client')({
   });
 var config = new (require("v-conf"))();
 var sleep = require('sleep');
+var io = require('socket.io-client');
 var socket = io.connect("http://localhost:3000");
 var execSync = require('child_process').execSync;
 
@@ -76,7 +77,7 @@ IRControl.prototype.onStart = function() {
 	// read and parse status once
 	socket.emit("getState", "");
 	socket.once("pushState", self.statusChanged.bind(self));
-
+	this.log('onStart was called')
 	// listen to every subsequent status report from Volumio
 	// status is pushed after every playback action, so we will be
 	// notified if the status changes
@@ -401,7 +402,7 @@ IRControl.prototype.getPiBoardInfo = function(){
 	var boardName = self.getPiBoard(); // Returns Pi 1 as a defualt
 	var groups = re.exec(boardName);
 	var pi = new Object();;
-
+	
 	// Regex groups
 	// ============
 	// 0 - Full text matched
@@ -412,7 +413,7 @@ IRControl.prototype.getPiBoardInfo = function(){
 	// 5 - Model plus: +
 	// 6 - PCB major revision: int
 	// 7 - PCB minor revision: int
-
+	self.log('getPiBoardInfo loaded')
 	// Have we found a valid Pi match
 	if (groups[0]){
 		pi.name = boardName; // Full board name
