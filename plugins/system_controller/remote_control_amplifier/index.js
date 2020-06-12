@@ -1,6 +1,7 @@
 'use strict';
 
 // I used supercrab's gpio_control plugin as a basis for this project
+//https://www.nodenpm.com/lirc-client/package.html
 var libQ = require("kew");
 var fs = require("fs-extra");
 const lirc = require('lirc-client')({
@@ -26,6 +27,7 @@ module.exports = IRControl;
 
 
 // Constructor
+// on the constructor, this needs to be heavily changed to initializa all the IR specific stuff 
 function IRControl(context) {
 	var self = this;
 
@@ -33,7 +35,7 @@ function IRControl(context) {
 	self.commandRouter = self.context.coreCommand;
 	self.logger = self.context.logger;
 	self.load18nStrings();
-	self.irController = self.
+	//self.irController = self.
 }
 
 // Volumio is starting
@@ -52,6 +54,7 @@ IRControl.prototype.onVolumioStart = function(){
 
 // Volumio is shutting down
 // todo - on volumio shutdown let's save the state and compare with what does mpd says about it (volume for example)
+// on stopping volumio, we may need to set the amplifier to play back radio or something (not sure yet)
 IRControl.prototype.onVolumioShutdown = function() {
 	var self = this;
 
@@ -209,7 +212,7 @@ IRControl.prototype.saveConfig = function(data){
 	// when we save the config, we need to save the volume state of MPD 
 	var self = this;
 
-	self.clearGPIOs();
+	//self.clearGPIOs();
 
 	// Loop through standard events
 	events.forEach(function(item) {
@@ -242,11 +245,12 @@ IRControl.prototype.saveConfig = function(data){
 };
 
 // Create GPIO objects for future events
-// todo this function needs to be replaced with 
+// todo this function needs to be replaced with ir specific stuff 
 IRControl.prototype.createGPIOs = function() {
 	var self = this;
 
 	self.log("Reading config and creating GPIOs");
+	self.log("createGPIO was called")
 
 	events.forEach(function(e) {
 		var c1 = e.concat(".enabled");
@@ -257,14 +261,14 @@ IRControl.prototype.createGPIOs = function() {
 		var pin = config.get(c2);
 		var state = config.get(c3);
 
-		if (enabled){
-			self.log(`Will set GPIO ${pin} ${self.boolToString(state)} when ${e}`);
-			var gpio = new Gpio(pin, "out");
-			gpio.e = e;
-			gpio.state = state ? 1 : 0;
-			gpio.pin = pin;
-			self.GPIOs.push(gpio);
-		}
+		//if (enabled){
+		//	self.log(`Will set GPIO ${pin} ${self.boolToString(state)} when ${e}`);
+		//	var gpio = new Gpio(pin, "out");
+		//	gpio.e = e;
+		//	gpio.state = state ? 1 : 0;
+		//	gpio.pin = pin;
+		//	self.GPIOs.push(gpio);
+		//}
 	});
 
 	return libQ.resolve();
@@ -275,12 +279,14 @@ IRControl.prototype.createGPIOs = function() {
 IRControl.prototype.clearGPIOs = function () {
 	var self = this;
 
-	self.GPIOs.forEach(function(gpio) {
-		self.log("Destroying GPIO " + gpio.pin);
-		gpio.unexport();
-	});
+	self.log("createGPIOs was called")
 
-	self.GPIOs = [];
+	//self.GPIOs.forEach(function(gpio) {
+	//	self.log("Destroying GPIO " + gpio.pin);
+	//	gpio.unexport();
+	//});
+
+	//self.GPIOs = [];
 
 	return libQ.resolve();
 };
@@ -302,21 +308,21 @@ IRControl.prototype.statusChanged = function(state) {
 // handleevent needs to look at the event and check all the stuff that mpd has to offer 
 IRControl.prototype.handleEvent = function(e) {
 	var self = this;
-
-	self.GPIOs.forEach(function(gpio) {
-		if (gpio.e == e){
-			self.log(`Turning GPIO ${gpio.pin} ${self.boolToString(gpio.state)} (${e})`);
-			gpio.writeSync(gpio.state);
-			if (e == SYSTEM_SHUTDOWN)
-				sleep.sleep(5);
-		}
-	});
+	self.log('handleEvent was called for '+e)
+	//self.GPIOs.forEach(function(gpio) {
+	//	if (gpio.e == e){
+	//		self.log(`Turning GPIO ${gpio.pin} ${self.boolToString(gpio.state)} (${e})`);
+	//		gpio.writeSync(gpio.state);
+	//		if (e == SYSTEM_SHUTDOWN)
+	//			sleep.sleep(5);
+	//	}
+	//});
 }
 
 // Output to log
 IRControl.prototype.log = function(s) {
 	var self = this;
-	self.logger.info("[GPIO_Control] " + s);
+	self.logger.info("[amplifier_remote_Control] " + s);
 }
 
 // Function for printing booleans
@@ -424,15 +430,15 @@ IRControl.prototype.getPiBoardInfo = function(){
 			pi.boardNumber = Number(groups[1].trim());
 
 		// Do we have 40 GPIOs or not?
-		if ((pi.boardNumber == 1)  && !pi.isModelPlus)
-			pi.fullGPIO = false;
-		else
-			pi.fullGPIO = true;
+		//if ((pi.boardNumber == 1)  && !pi.isModelPlus)
+		//	pi.fullGPIO = false;
+		//else
+		//	pi.fullGPIO = true;
 	}
 	else{
 		// This should never happen
 		pi.name = "Unknown";
-		pi.fullGPIO = false;
+		//pi.fullGPIO = false;
 	}
 
 	// Return pi object
