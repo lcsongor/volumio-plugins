@@ -43,6 +43,7 @@ function IRControl(context) {
 // read the states from the config file 
 IRControl.prototype.onVolumioStart = function(){
 	var self = this;
+	self.log('onVolumioStart');
 	var configFile = self.commandRouter.pluginManager.getConfigurationFile(self.context, "config.json");
 	config.loadFile(configFile);
 
