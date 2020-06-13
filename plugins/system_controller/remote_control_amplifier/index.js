@@ -19,10 +19,11 @@ const SYSTEM_SHUTDOWN = "systemShutdown";
 const MUSIC_PLAY = "musicPlay";
 const MUSIC_PAUSE = "musicPause";
 const MUSIC_STOP = "musicStop";
+const VOLUME_CHANGE = "SetAlsaVolume";
 
 // Events that we can detect and do something
 // todo ther are more events that we are watching 
-const events = [SYSTEM_STARTUP, SYSTEM_SHUTDOWN, MUSIC_PLAY, MUSIC_PAUSE, MUSIC_STOP];
+const events = [SYSTEM_STARTUP, SYSTEM_SHUTDOWN, MUSIC_PLAY, MUSIC_PAUSE, MUSIC_STOP,VOLUME_CHANGE];
 
 module.exports = IRControl;
 
@@ -59,9 +60,10 @@ IRControl.prototype.onVolumioStart = function(){
 // on stopping volumio, we may need to set the amplifier to play back radio or something (not sure yet)
 IRControl.prototype.onVolumioShutdown = function() {
 	var self = this;
-
-	self.handleEvent(SYSTEM_SHUTDOWN);
-
+	socket.emit("getState", "");
+	socket.on("pushState",  function (state) {
+	self.handleEvent(SYSTEM_SHUTDOWN,state);
+	})
 	return libQ.resolve();
 };
 
@@ -89,6 +91,7 @@ IRControl.prototype.onStart = function() {
 	self.recreateState()
 		.then (function(result) {
 			self.log("State created from configuration created");
+			state
 			self.handleEvent(SYSTEM_STARTUP);
 
 			defer.resolve();
@@ -297,20 +300,21 @@ IRControl.prototype.saveStatesToFile = function () {
 // (might not always be a play or pause action)
 IRControl.prototype.statusChanged = function(state) {
 	var self = this;
-
+	self.log('State is like %j',state)
 	if (state.status == "play")
-		self.handleEvent(MUSIC_PLAY);
+		self.handleEvent(MUSIC_PLAY,state);
 	else if (state.status == "pause")
-		self.handleEvent(MUSIC_PAUSE);
+		self.handleEvent(MUSIC_PAUSE,state);
 	else if (state.status == "stop")
-		self.handleEvent(MUSIC_STOP);
+		self.handleEvent(MUSIC_STOP,state);
 }
 
 // An event has happened so do something about it
 // handleevent needs to look at the event and check all the stuff that mpd has to offer 
-IRControl.prototype.handleEvent = function(e) {
+IRControl.prototype.handleEvent = function(e,state= {"volume":1}) {
 	var self = this;
 	self.log('handleEvent was called for '+e)
+	self.log('handleEvent full state is like:'+state.volume);
 	//self.GPIOs.forEach(function(gpio) {
 	//	if (gpio.e == e){
 	//		self.log(`Turning GPIO ${gpio.pin} ${self.boolToString(gpio.state)} (${e})`);
