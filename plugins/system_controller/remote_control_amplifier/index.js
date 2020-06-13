@@ -36,7 +36,7 @@ function IRControl(context) {
 	self.commandRouter = self.context.coreCommand;
 	self.logger = self.context.logger;
 	self.load18nStrings();
-	//self.irController = self.
+	self.piBoard = self.getPiBoardInfo();
 }
 
 // Volumio is starting
@@ -85,9 +85,9 @@ IRControl.prototype.onStart = function() {
 
 	// Create pin objects
 	// todo chek if everything is alright with the lirc sender 
-	self.createGPIOs()
+	self.recreateState()
 		.then (function(result) {
-			self.log("GPIOs created");
+			self.log("State created from configuration created");
 			self.handleEvent(SYSTEM_STARTUP);
 
 			defer.resolve();
@@ -102,9 +102,9 @@ IRControl.prototype.onStop = function() {
 	var self = this;
 	var defer = libQ.defer();
 
-	self.clearGPIOs()
+	self.saveStatesToFile()
 		.then (function(result) {
-			self.log("GPIOs destroyed");
+			self.log("State was saved to config file ");
 			defer.resolve();
 		});
 
@@ -234,7 +234,7 @@ IRControl.prototype.saveConfig = function(data){
 	});
 
 	self.log("Saving config");
-	self.createGPIOs();
+	self.recreateState();
 
 	// Pins have been reset to fire off system startup
 	self.handleEvent(SYSTEM_STARTUP);
@@ -245,22 +245,22 @@ IRControl.prototype.saveConfig = function(data){
 	self.commandRouter.pushToastMessage('success', self.getI18nString("PLUGIN_CONFIGURATION"), self.getI18nString("SETTINGS_SAVED"));
 };
 
-// Create GPIO objects for future events
+// Create ir objects for future events
 // todo this function needs to be replaced with ir specific stuff 
-IRControl.prototype.createGPIOs = function() {
+IRControl.prototype.recreateState = function() {
 	var self = this;
 
 	self.log("Reading config and creating GPIOs");
-	self.log("createGPIO was called")
+	self.log("recreateState was called")
 
-	events.forEach(function(e) {
-		var c1 = e.concat(".enabled");
-		var c2 = e.concat(".pin");
-		var c3 = e.concat(".state");
+	//events.forEach(function(e) {
+	//	var c1 = e.concat(".enabled");
+	//	var c2 = e.concat(".pin");
+	//	var c3 = e.concat(".state");
 
-		var enabled = config.get(c1);
-		var pin = config.get(c2);
-		var state = config.get(c3);
+	//	var enabled = config.get(c1);
+	//	var pin = config.get(c2);
+	//	var state = config.get(c3);
 
 		//if (enabled){
 		//	self.log(`Will set GPIO ${pin} ${self.boolToString(state)} when ${e}`);
@@ -270,17 +270,17 @@ IRControl.prototype.createGPIOs = function() {
 		//	gpio.pin = pin;
 		//	self.GPIOs.push(gpio);
 		//}
-	});
+	//});
 
 	return libQ.resolve();
 };
 
-// Release our GPIO objects
+// Release our ircontrol objects
 // todo not sure that this is necessary in our case 
-IRControl.prototype.clearGPIOs = function () {
+IRControl.prototype.saveStatesToFile = function () {
 	var self = this;
 
-	self.log("createGPIOs was called")
+	self.log("saveStatesToFile was called")
 
 	//self.GPIOs.forEach(function(gpio) {
 	//	self.log("Destroying GPIO " + gpio.pin);
@@ -360,6 +360,7 @@ IRControl.prototype.getI18nString = function (key) {
 // Retrieve a UI element from UI config
 IRControl.prototype.getUIElement = function(obj, field){
 	var self = this;
+	self.log('getUIElement was called')
 	var lookfor = JSON.parse('{"id":"' + field + '"}');
 	return obj.sections[0].content.findItem(lookfor);
 }
@@ -367,6 +368,7 @@ IRControl.prototype.getUIElement = function(obj, field){
 // Populate switch UI element
 IRControl.prototype.setSwitchElement = function(obj, field, value){
 	var self = this;
+	self.log('setSwitchElement was called')
 	var result = self.getUIElement(obj, field);
 	if (result)
 		result.value = value;
@@ -375,6 +377,7 @@ IRControl.prototype.setSwitchElement = function(obj, field, value){
 // Populate select UI element
 IRControl.prototype.setSelectElement = function(obj, field, value, label){
 	var self = this;
+	self.log('setSelectElement was called')
 	var result = self.getUIElement(obj, field);
 	if (result){
 		result.value.value = value;
@@ -402,7 +405,7 @@ IRControl.prototype.getPiBoardInfo = function(){
 	var boardName = self.getPiBoard(); // Returns Pi 1 as a defualt
 	var groups = re.exec(boardName);
 	var pi = new Object();;
-	
+
 	// Regex groups
 	// ============
 	// 0 - Full text matched
@@ -454,6 +457,7 @@ IRControl.prototype.getPiBoardInfo = function(){
 IRControl.prototype.getPiBoard = function(){
 	var self = this;
 	var board;
+	self.log('getPi Board was called')
 	try {
 		board = execSync("cat /proc/device-tree/model").toString();
 	}
