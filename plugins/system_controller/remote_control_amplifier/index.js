@@ -8,7 +8,7 @@ const lirc = require('lirc-client')({
 	path: '/var/run/lirc/lircd'
   });
 var config = new (require("v-conf"))();
-var sleep = require('sleep');
+var savedDesiredConfig = new (require("v-conf"))();
 var io = require('socket.io-client');
 var socket = io.connect("http://localhost:3000");
 var execSync = require('child_process').execSync;
@@ -46,7 +46,9 @@ IRControl.prototype.onVolumioStart = function(){
 	var self = this;
 	self.log('onVolumioStart');
 	var configFile = self.commandRouter.pluginManager.getConfigurationFile(self.context, "config.json");
+	var stateconfigFile = self.commandRouter.pluginManager.getConfigurationFile(self.context, "stateconfig.json");
 	config.loadFile(configFile);
+	savedDesiredConfig.loadFile(stateconfigFile);
 
 	self.log(`Detected ${self.piBoard.name}`);
 	self.log(`40 GPIOs: ${self.piBoard.fullGPIO}`);
@@ -249,33 +251,65 @@ IRControl.prototype.saveConfig = function(data){
 	self.commandRouter.pushToastMessage('success', self.getI18nString("PLUGIN_CONFIGURATION"), self.getI18nString("SETTINGS_SAVED"));
 };
 
+IRControl.prototype.saveDesiredState = function(data) {
+	var self = this;
+	savedDesiredConfig.set("volume",data.volume)
+	savedDesiredConfig.set("on",data.on)
+	
+	return libQ.resolve();
+};
+
+IRControl.prototype.increaseVolume = function() {
+	lirc.sendOnce('receiver', 'KEY_VOLUMEUP').catch(error => {
+        if (error) console.log(error);
+    });
+}
+
+IRControl.prototype.decreaseVolume = function() {
+	
+	lirc.sendOnce('receiver', 'KEY_VOLUMEDOWN').catch(error => {
+        if (error) console.log(error);
+	});
+}
+
+IRControl.prototype.setVolume = async function(newvolume) {
+	var self = this;
+	var currentvolume = savedDesiredConfig.volume
+	if (newvolume < currentvolume) {
+		self.log("Decreasing volume from "+currentvolume+" to "+newvolume)
+		for (var i = 0; i < currentvolume-newvolume; i++) {
+			self.decreaseVolume();
+			await new Promise(resolve => setTimeout(resolve, 10));
+	}
+}
+	if (newvolume > currentvolume) {
+		self.log("Increasing volume from "+currentvolume+" to "+newvolume)
+		for (var i = 0; i < newvolume-currentvolume; i++) {
+			self.increaseVolume();
+			await new Promise(resolve => setTimeout(resolve, 10));
+	}
+}
+	savedDesiredConfig={"volume":newvolume}
+}
+
+IRControl.prototype.compareStates = function(data) {
+	var self = this;
+	if (self.desiredconfig.volume != data.volume) {
+		self.log("Need to increase volume to "+data.volume)
+		self.setVolume(data.volume)
+	}
+}
+
+
 // Create ir objects for future events
 // todo this function needs to be replaced with ir specific stuff 
 IRControl.prototype.recreateState = function() {
 	var self = this;
 
-	self.log("Reading config and creating GPIOs");
+	self.log("Reading config and setting volumes");
 	self.log("recreateState was called")
 
-	//events.forEach(function(e) {
-	//	var c1 = e.concat(".enabled");
-	//	var c2 = e.concat(".pin");
-	//	var c3 = e.concat(".state");
-
-	//	var enabled = config.get(c1);
-	//	var pin = config.get(c2);
-	//	var state = config.get(c3);
-
-		//if (enabled){
-		//	self.log(`Will set GPIO ${pin} ${self.boolToString(state)} when ${e}`);
-		//	var gpio = new Gpio(pin, "out");
-		//	gpio.e = e;
-		//	gpio.state = state ? 1 : 0;
-		//	gpio.pin = pin;
-		//	self.GPIOs.push(gpio);
-		//}
-	//});
-
+	
 	return libQ.resolve();
 };
 
@@ -300,7 +334,7 @@ IRControl.prototype.saveStatesToFile = function () {
 // (might not always be a play or pause action)
 IRControl.prototype.statusChanged = function(state) {
 	var self = this;
-	self.log('State is like %j',state)
+	self.log('State is like '+state)
 	if (state.status == "play")
 		self.handleEvent(MUSIC_PLAY,state);
 	else if (state.status == "pause")
@@ -315,14 +349,8 @@ IRControl.prototype.handleEvent = function(e,state= {"volume":1}) {
 	var self = this;
 	self.log('handleEvent was called for '+e)
 	self.log('handleEvent full state is like:'+state.volume);
-	//self.GPIOs.forEach(function(gpio) {
-	//	if (gpio.e == e){
-	//		self.log(`Turning GPIO ${gpio.pin} ${self.boolToString(gpio.state)} (${e})`);
-	//		gpio.writeSync(gpio.state);
-	//		if (e == SYSTEM_SHUTDOWN)
-	//			sleep.sleep(5);
-	//	}
-	//});
+	var desiredstate = {"volume":state.volume}
+	self.setVolume(state.volume);
 }
 
 // Output to log
