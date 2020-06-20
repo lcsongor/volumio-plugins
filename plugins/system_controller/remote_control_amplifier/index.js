@@ -8,7 +8,7 @@ const lirc = require('lirc-client')({
 	path: '/var/run/lirc/lircd'
   });
 var config = new (require("v-conf"))();
-var savedDesiredConfig = new (require("v-conf"))();
+var savedDesiredConfig = {"volume":0};
 var io = require('socket.io-client');
 var socket = io.connect("http://localhost:3000");
 var execSync = require('child_process').execSync;
@@ -46,10 +46,8 @@ IRControl.prototype.onVolumioStart = function(){
 	var self = this;
 	self.log('onVolumioStart');
 	var configFile = self.commandRouter.pluginManager.getConfigurationFile(self.context, "config.json");
-	var stateconfigFile = self.commandRouter.pluginManager.getConfigurationFile(self.context, "stateconfig.json");
 	config.loadFile(configFile);
-	savedDesiredConfig.loadFile(stateconfigFile);
-
+	savedDesiredConfig.volume=config.volume;
 	self.log(`Detected ${self.piBoard.name}`);
 	self.log(`40 GPIOs: ${self.piBoard.fullGPIO}`);
 	self.log("Initialized");
@@ -252,23 +250,23 @@ IRControl.prototype.saveConfig = function(data){
 };
 
 IRControl.prototype.saveDesiredState = function(data) {
+	// not yet used 
 	var self = this;
 	savedDesiredConfig.set("volume",data.volume)
 	savedDesiredConfig.set("on",data.on)
-	
 	return libQ.resolve();
 };
 
 IRControl.prototype.increaseVolume = function() {
 	lirc.sendOnce('receiver', 'KEY_VOLUMEUP').catch(error => {
-        if (error) console.log(error);
+        if (error) this.log(error);
     });
 }
 
 IRControl.prototype.decreaseVolume = function() {
 	
 	lirc.sendOnce('receiver', 'KEY_VOLUMEDOWN').catch(error => {
-        if (error) console.log(error);
+        if (error) this.log(error);
 	});
 }
 
@@ -319,6 +317,8 @@ IRControl.prototype.saveStatesToFile = function () {
 	var self = this;
 
 	self.log("saveStatesToFile was called")
+	config.set("volume",savedDesiredConfig.volume)
+	config.save();
 
 	//self.GPIOs.forEach(function(gpio) {
 	//	self.log("Destroying GPIO " + gpio.pin);
