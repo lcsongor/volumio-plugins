@@ -4,13 +4,13 @@
 	},
 	"sections": [
 		{
-			"id": "gpio_control_setup",
+			"id": "remote_control_amplifier_setup",
 			"element": "section",
 			"label": "TRANSLATE.PLUGIN_DESCRIPTION",
 			"icon": "fa-plug",
 			"onSave": {
 				"type": "controller",
-				"endpoint": "system_controller\/gpio_control",
+				"endpoint": "system_controller\/remote_control_amplifier",
 				"method": "saveConfig"
 			},
 			"saveButton": {

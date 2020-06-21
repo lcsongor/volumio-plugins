@@ -1,8 +1,8 @@
 {
 	"ON": "On",
 	"OFF": "Off",
-	"PLUGIN_CONFIGURATION": "GPIO Control Configuration",
-	"PLUGIN_DESCRIPTION": "Control GPIO With Volumio Events",
+	"PLUGIN_CONFIGURATION": "Amplifier IR Control Configuration",
+	"PLUGIN_DESCRIPTION": "Control Amplifier with IR using Volumio Events",
 	"SAVE": "Save",
 	"SYSTEM_STARTUP": "System Startup Event",
 	"SYSTEM_STARTUP_DOC": "Set the state of a GPIO pin when Volumio starts",

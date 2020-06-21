@@ -21,8 +21,17 @@ const MUSIC_PAUSE = "musicPause";
 const MUSIC_STOP = "musicStop";
 const VOLUME_CHANGE = "SetAlsaVolume";
 
+// IR device related settings - these are only defaults, subject to change from loading config 
+var devicename='receiver';
+var start_button='KEY_POWER';
+var stop_button='KEY_POWER2';
+var vol_down_button='KEY_VOLUMEDOWN';
+var vol_up_button='KEY_VOLUMEUP';
+
+// behavior related settings - 
+var stopToTurnOffDelay = 60;
+
 // Events that we can detect and do something
-// todo ther are more events that we are watching 
 const events = [SYSTEM_STARTUP, SYSTEM_SHUTDOWN, MUSIC_PLAY, MUSIC_PAUSE, MUSIC_STOP,VOLUME_CHANGE];
 
 module.exports = IRControl;
@@ -32,12 +41,13 @@ module.exports = IRControl;
 // on the constructor, this needs to be heavily changed to initializa all the IR specific stuff 
 function IRControl(context) {
 	var self = this;
-
 	self.context = context;
 	self.commandRouter = self.context.coreCommand;
 	self.logger = self.context.logger;
 	self.load18nStrings();
 	self.piBoard = self.getPiBoardInfo();
+	self.stopRequested = false;
+	self.stopInProgress = false;
 }
 
 // Volumio is starting
@@ -93,7 +103,6 @@ IRControl.prototype.onStart = function() {
 			self.log("State created from configuration created");
 			state
 			self.handleEvent(SYSTEM_STARTUP);
-
 			defer.resolve();
 		});
 
@@ -257,18 +266,7 @@ IRControl.prototype.saveDesiredState = function(data) {
 	return libQ.resolve();
 };
 
-IRControl.prototype.increaseVolume = function() {
-	lirc.sendOnce('receiver', 'KEY_VOLUMEUP').catch(error => {
-        if (error) this.log(error);
-    });
-}
 
-IRControl.prototype.decreaseVolume = function() {
-	
-	lirc.sendOnce('receiver', 'KEY_VOLUMEDOWN').catch(error => {
-        if (error) this.log(error);
-	});
-}
 
 IRControl.prototype.setVolume = async function(newvolume) {
 	var self = this;
@@ -288,6 +286,58 @@ IRControl.prototype.setVolume = async function(newvolume) {
 	}
 }
 	savedDesiredConfig={"volume":newvolume}
+}
+
+IRControl.prototype.increaseVolume = function() {
+	lirc.sendOnce(devicename, vol_up_button).catch(error => {
+        if (error) this.log(error);
+    });
+}
+
+IRControl.prototype.decreaseVolume = function() {
+	
+	lirc.sendOnce(devicename, vol_down_button).catch(error => {
+        if (error) this.log(error);
+	});
+}
+
+IRControl.prototype.turnItOff = function() {
+	lirc.sendOnce(devicename, stop_button).catch(error => {
+        if (error) this.log(error);
+	});
+}
+
+IRControl.prototype.turnItOn = function() {
+	lirc.sendOnce(devicename, start_button).catch(error => {
+        if (error) this.log(error);
+	});
+}
+
+
+IRControl.prototype.turnOffAmplifierWithDelay = async function() {
+	var self = this;
+	if (! self.stopInProgress) {
+		self.log('Playback was stopped, amplifier will be turned off in '+stopToTurnOffDelay+' seconds')
+		self.stopInProgress=true;
+		await new Promise(resolve => setTimeout(resolve, stopToTurnOffDelay*1000));
+		if (self.stopRequested) {
+		self.turnItOff();
+		self.log('Amplifier was turned off')
+		config.on=false;
+		}
+	}
+}
+
+IRControl.prototype.turnOnAmplifier = function() {
+	// if there is a counter already started to stop the amplifier, stop this and press the power button (anyway it doesn't hurt)
+	var self = this;
+	self.stopInProgress=false;
+	self.stopRequested=false;
+	self.log('Playback started - turning the amplifier on ')
+	//if (!config.on) {
+	self.turnItOn();
+	config.on=true;
+	//}
 }
 
 IRControl.prototype.compareStates = function(data) {
@@ -351,6 +401,12 @@ IRControl.prototype.handleEvent = function(e,state= {"volume":1}) {
 	self.log('handleEvent full state is like:'+state.volume);
 	var desiredstate = {"volume":state.volume}
 	self.setVolume(state.volume);
+	if (e == MUSIC_PAUSE){
+		self.turnOffAmplifierWithDelay();
+	}
+	if (e == MUSIC_PLAY){
+		self.turnOnAmplifier();
+	}
 }
 
 // Output to log
