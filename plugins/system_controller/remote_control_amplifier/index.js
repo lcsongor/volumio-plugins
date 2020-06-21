@@ -48,6 +48,8 @@ function IRControl(context) {
 	self.piBoard = self.getPiBoardInfo();
 	self.stopRequested = false;
 	self.stopInProgress = false;
+	// assume that the amplifier has been turned off 
+	self.amplifierOn = false;
 }
 
 // Volumio is starting
@@ -323,7 +325,7 @@ IRControl.prototype.turnOffAmplifierWithDelay = async function() {
 		if (self.stopRequested) {
 		self.turnItOff();
 		self.log('Amplifier was turned off')
-		config.on=false;
+		self.amplifierOn=false;
 		}
 	}
 }
@@ -333,11 +335,11 @@ IRControl.prototype.turnOnAmplifier = function() {
 	var self = this;
 	self.stopInProgress=false;
 	self.stopRequested=false;
-	self.log('Playback started - turning the amplifier on ')
-	//if (!config.on) {
-	self.turnItOn();
-	config.on=true;
-	//}
+	if (!self.amplifierOn) {
+		self.log('Playback started - turning the amplifier on ')
+		self.turnItOn();
+		self.amplifierOn=true;
+	}
 }
 
 IRControl.prototype.compareStates = function(data) {
@@ -356,7 +358,6 @@ IRControl.prototype.recreateState = function() {
 
 	self.log("Reading config and setting volumes");
 	self.log("recreateState was called")
-
 	
 	return libQ.resolve();
 };
@@ -402,6 +403,9 @@ IRControl.prototype.handleEvent = function(e,state= {"volume":1}) {
 	var desiredstate = {"volume":state.volume}
 	self.setVolume(state.volume);
 	if (e == MUSIC_PAUSE){
+		self.turnOffAmplifierWithDelay();
+	}
+	if (e == MUSIC_STOP){
 		self.turnOffAmplifierWithDelay();
 	}
 	if (e == MUSIC_PLAY){
