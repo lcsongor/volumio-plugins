@@ -30,6 +30,7 @@ var vol_up_button='KEY_VOLUMEUP';
 
 // behavior related settings - 
 var stopToTurnOffDelay = 60;
+var keypressTimeOut = 100;
 
 // Events that we can detect and do something
 const events = [SYSTEM_STARTUP, SYSTEM_SHUTDOWN, MUSIC_PLAY, MUSIC_PAUSE, MUSIC_STOP,VOLUME_CHANGE];
@@ -48,7 +49,8 @@ function IRControl(context) {
 	self.piBoard = self.getPiBoardInfo();
 	self.stopRequested = false;
 	self.stopInProgress = false;
-	// assume that the amplifier has been turned off 
+	// assume that the amplifier has been turned off
+	self.log('Initializing IRControl');
 	self.amplifierOn = false;
 }
 
@@ -273,18 +275,21 @@ IRControl.prototype.saveDesiredState = function(data) {
 IRControl.prototype.setVolume = async function(newvolume) {
 	var self = this;
 	var currentvolume = savedDesiredConfig.volume
+
+	// somehow we need to be sure that we are doing only one operation at once
+
 	if (newvolume < currentvolume) {
 		self.log("Decreasing volume from "+currentvolume+" to "+newvolume)
 		for (var i = 0; i < currentvolume-newvolume; i++) {
 			self.decreaseVolume();
-			await new Promise(resolve => setTimeout(resolve, 10));
+			await new Promise(resolve => setTimeout(resolve, keypressTimeOut));
 	}
 }
 	if (newvolume > currentvolume) {
 		self.log("Increasing volume from "+currentvolume+" to "+newvolume)
 		for (var i = 0; i < newvolume-currentvolume; i++) {
 			self.increaseVolume();
-			await new Promise(resolve => setTimeout(resolve, 10));
+			await new Promise(resolve => setTimeout(resolve, keypressTimeOut));
 	}
 }
 	savedDesiredConfig={"volume":newvolume}
