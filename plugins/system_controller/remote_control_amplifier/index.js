@@ -326,12 +326,22 @@ IRControl.prototype.turnOffAmplifierWithDelay = async function() {
 	if (! self.stopInProgress) {
 		self.log('Playback was stopped, amplifier will be turned off in '+stopToTurnOffDelay+' seconds')
 		self.stopInProgress=true;
-		await new Promise(resolve => setTimeout(resolve, stopToTurnOffDelay*1000));
-		if (self.stopRequested) {
-		self.turnItOff();
-		self.log('Amplifier was turned off')
-		self.amplifierOn=false;
-		}
+		self.stopRequested = true;
+		return new Promise(function(resolve,reject) {
+			setTimeout(() => {
+				self.log('Stopping the amplifier')
+				if (self.stopRequested) {
+					self.turnItOff();
+					self.log('Amplifier was turned off')
+					self.amplifierOn = false;
+					self.stopInProgress = false;
+					self.stopInProgress = false;
+					resolve();
+				} else {
+					self.stopInProgress=false;
+				}
+			}, stopToTurnOffDelay * 1000)
+		})
 	}
 }
 
