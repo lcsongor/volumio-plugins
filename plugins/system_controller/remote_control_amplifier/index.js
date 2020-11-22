@@ -46,7 +46,6 @@ function IRControl(context) {
 	self.commandRouter = self.context.coreCommand;
 	self.logger = self.context.logger;
 	self.load18nStrings();
-	self.piBoard = self.getPiBoardInfo();
 	self.stopRequested = false;
 	self.stopInProgress = false;
 	// assume that the amplifier has been turned off
@@ -60,12 +59,7 @@ IRControl.prototype.onVolumioStart = function(){
 	var self = this;
 	self.log('onVolumioStart');
 	var configFile = self.commandRouter.pluginManager.getConfigurationFile(self.context, "config.json");
-	config.loadFile(configFile);
-	savedDesiredConfig.volume=config.volume;
-	self.log(`Detected ${self.piBoard.name}`);
-	self.log(`40 GPIOs: ${self.piBoard.fullGPIO}`);
-	self.log("Initialized");
-
+	
 	return libQ.resolve();
 }
 
@@ -100,11 +94,9 @@ IRControl.prototype.onStart = function() {
 	// notified if the status changes
 	socket.on("pushState", self.statusChanged.bind(self));
 
-	// Create pin objects
-	// todo chek if everything is alright with the lirc sender 
 	self.recreateState()
 		.then (function(result) {
-			self.log("State created from configuration created");
+			self.log("State created from configuration");
 			state
 			self.handleEvent(SYSTEM_STARTUP);
 			defer.resolve();
@@ -187,6 +179,7 @@ IRControl.prototype.getUIConfig = function() {
 		.then(function(uiconf)
 		{
 			//var i = 0;
+			//todo this is not needed. We need to get the last volume, to configure it 
 			events.forEach(function(e) {
 
 				// Strings for data fields
@@ -230,34 +223,8 @@ IRControl.prototype.saveConfig = function(data){
 	// when we save the config, we need to save the volume state of MPD 
 	var self = this;
 
-	//self.clearGPIOs();
-
-	// Loop through standard events
-	events.forEach(function(item) {
-
-		// Element names
-		var e1 = item.concat("Enabled");
-		var e2 = item.concat("Pin");
-		var e3 = item.concat("State");
-
-		// Strings for config
-		var c1 = item.concat(".enabled");
-		var c2 = item.concat(".pin");
-		var c3 = item.concat(".state");
-
-		config.set(c1, data[e1]);
-		config.set(c2, data[e2]["value"]);
-		config.set(c3, data[e3]["value"]);
-	});
-
 	self.log("Saving config");
-	self.recreateState();
-
-	// Pins have been reset to fire off system startup
-	self.handleEvent(SYSTEM_STARTUP);
-
-	// retrieve playing status
-	socket.emit("getState", "");
+	config.set('volume',this.savedDesiredConfig.volume)
 
 	self.commandRouter.pushToastMessage('success', self.getI18nString("PLUGIN_CONFIGURATION"), self.getI18nString("SETTINGS_SAVED"));
 };
@@ -277,6 +244,8 @@ IRControl.prototype.setVolume = async function(newvolume) {
 	var currentvolume = savedDesiredConfig.volume
 
 	// somehow we need to be sure that we are doing only one operation at once
+
+	// todo implement queuing mechanism that is watching the change of this variable 
 
 	if (newvolume < currentvolume) {
 		self.log("Decreasing volume from "+currentvolume+" to "+newvolume)
@@ -321,6 +290,26 @@ IRControl.prototype.turnItOn = function() {
 }
 
 
+IRControl.prototype.turnOffAmplifier =  function() {
+	// handles stopping the amplifier and all the state machines 
+	var self = this;
+	self.log('Stopping the amplifier')
+	self.turnItOff();
+	self.amplifierOn = false;
+	self.stopInProgress = false;
+	self.log('Amplifier was turned off')
+}
+
+IRControl.prototype.turnOnAmplifier = function() {
+	// if there is a counter already started to stop the amplifier, stop this and press the power button (anyway it doesn't hurt)
+	var self = this;
+	self.stopInProgress=false;
+	self.stopRequested=false;
+	self.log('Turning the amplifier on ')
+	self.turnItOn();
+	self.amplifierOn=true;
+}
+
 IRControl.prototype.turnOffAmplifierWithDelay = async function() {
 	var self = this;
 	if (! self.stopInProgress) {
@@ -329,13 +318,9 @@ IRControl.prototype.turnOffAmplifierWithDelay = async function() {
 		self.stopRequested = true;
 		return new Promise(function(resolve,reject) {
 			setTimeout(() => {
-				self.log('Stopping the amplifier')
 				if (self.stopRequested) {
-					self.turnItOff();
-					self.log('Amplifier was turned off')
-					self.amplifierOn = false;
-					self.stopInProgress = false;
-					self.stopInProgress = false;
+					self.turnOffAmplifier();
+					self.stopRequested = false;
 					resolve();
 				} else {
 					self.stopInProgress=false;
@@ -345,17 +330,7 @@ IRControl.prototype.turnOffAmplifierWithDelay = async function() {
 	}
 }
 
-IRControl.prototype.turnOnAmplifier = function() {
-	// if there is a counter already started to stop the amplifier, stop this and press the power button (anyway it doesn't hurt)
-	var self = this;
-	self.stopInProgress=false;
-	self.stopRequested=false;
-	if (!self.amplifierOn) {
-		self.log('Playback started - turning the amplifier on ')
-		self.turnItOn();
-		self.amplifierOn=true;
-	}
-}
+
 
 IRControl.prototype.compareStates = function(data) {
 	var self = this;
@@ -370,10 +345,10 @@ IRControl.prototype.compareStates = function(data) {
 // todo this function needs to be replaced with ir specific stuff 
 IRControl.prototype.recreateState = function() {
 	var self = this;
-
 	self.log("Reading config and setting volumes");
 	self.log("recreateState was called")
-	
+	config.loadFile(configFile);
+	this.savedDesiredConfig.volume=config.volume;
 	return libQ.resolve();
 };
 
@@ -384,14 +359,8 @@ IRControl.prototype.saveStatesToFile = function () {
 
 	self.log("saveStatesToFile was called")
 	config.set("volume",savedDesiredConfig.volume)
+	
 	config.save();
-
-	//self.GPIOs.forEach(function(gpio) {
-	//	self.log("Destroying GPIO " + gpio.pin);
-	//	gpio.unexport();
-	//});
-
-	//self.GPIOs = [];
 
 	return libQ.resolve();
 };
@@ -415,7 +384,7 @@ IRControl.prototype.handleEvent = function(e,state= {"volume":1}) {
 	var self = this;
 	self.log('handleEvent was called for '+e)
 	self.log('handleEvent full state is like:'+state.volume);
-	var desiredstate = {"volume":state.volume}
+	desiredstate = {"volume":state.volume}
 	self.setVolume(state.volume);
 	if (e == MUSIC_PAUSE){
 		self.turnOffAmplifierWithDelay();
@@ -425,6 +394,14 @@ IRControl.prototype.handleEvent = function(e,state= {"volume":1}) {
 	}
 	if (e == MUSIC_PLAY){
 		self.turnOnAmplifier();
+	}
+	if (e == SYSTEM_SHUTDOWN){
+		self.saveConfig()
+		self.tu
+		// handle system shutdown 
+	}
+	if (e == SYSTEM_STARTUP){
+		// handle system startup 
 	}
 }
 
@@ -497,81 +474,4 @@ IRControl.prototype.setSelectElement = function(obj, field, value, label){
 IRControl.prototype.setSelectElementStr = function(obj, field, value){
 	var self = this;
 	self.setSelectElement(obj, field, value, value.toString());
-}
-
-// Retrieves information about the Pi hardware
-// Ignores the compute module for now
-// todo actually we need to check the status of the infrared devices 
-IRControl.prototype.getPiBoardInfo = function(){
-	var self = this;
-	var regex = "(?:Pi)" +
-		"(?:\\s(\\d+))?" +
-		"(?:\\s(Zero)(?:\\s(W))?)?" +
-		"(?:\\sModel\\s(?:([AB])(?:\\s(Plus))?))?" +
-		"(?:\\sRev\\s(\\d+)(?:\\.(\\d+))?)?";
-	var re = new RegExp(regex, "gi"); // global and case insensitive
-	var boardName = self.getPiBoard(); // Returns Pi 1 as a defualt
-	var groups = re.exec(boardName);
-	var pi = new Object();;
-
-	// Regex groups
-	// ============
-	// 0 - Full text matched
-	// 1 - Board number: 0, 1, 2, 3
-	// 2 - Zero: Zero
-	// 3 - Zero W: W
-	// 4 - Model: A, B
-	// 5 - Model plus: +
-	// 6 - PCB major revision: int
-	// 7 - PCB minor revision: int
-	self.log('getPiBoardInfo loaded')
-	// Have we found a valid Pi match
-	if (groups[0]){
-		pi.name = boardName; // Full board name
-		pi.isZero = groups[2] == "Zero" // null, Zero
-		pi.isZeroW = groups[3] == "W"; // null, W
-		pi.model = groups[4]; // null, A, B
-		pi.isModelPlus = groups[5] == "Plus"; // null, plus
-		pi.revisionMajor = groups[6]; // null, digit
-		pi.revisionMinor = groups[7]; // null, digit
-		pi.boardNumber = 1; // Set to Pi 1 (default - not model number found)
-
-		if (pi.isZero) // We found a Pi Zero
-			pi.boardNumber = 0;
-		else if (groups[1])	// We have Pi with a model number; i.e. 2, 3
-			pi.boardNumber = Number(groups[1].trim());
-
-		// Do we have 40 GPIOs or not?
-		//if ((pi.boardNumber == 1)  && !pi.isModelPlus)
-		//	pi.fullGPIO = false;
-		//else
-		//	pi.fullGPIO = true;
-	}
-	else{
-		// This should never happen
-		pi.name = "Unknown";
-		//pi.fullGPIO = false;
-	}
-
-	// Return pi object
-	return pi;
-}
-
-// Try to get the hardware board we're running on currently (default is Pi 1)
-// Pi names
-//
-// https://elinux.org/RPi_HardwareHistory
-// Raspberry Pi Zero Rev1.3, Raspberry Pi Model B Rev 1, Raspberry Pi 2 Model B Rev 1.0
-IRControl.prototype.getPiBoard = function(){
-	var self = this;
-	var board;
-	self.log('getPi Board was called')
-	try {
-		board = execSync("cat /proc/device-tree/model").toString();
-	}
-	catch(e){
-		self.log("Failed to read Pi board so default to Pi 1!");
-		board = "Pi Rev";
-	}
-	return board;
 }
