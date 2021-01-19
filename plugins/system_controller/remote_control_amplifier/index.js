@@ -178,15 +178,17 @@ IRControl.prototype.getUIConfig = function () {
 
     self.log(`UI Config file ${UIConfigFile}`);
 
-    // add Hungarian
-    self.commandRouter.i18nJson(
-        __dirname + "/i18n/strings_" + lang_code + ".json",
-        __dirname + "/i18n/strings_en.json",
-        UIConfigFile
-    )
-        .then(function (uiconf) {
-            //var i = 0;
-            events.forEach(function (e) {
+	// add Hungarian 
+	self.commandRouter.i18nJson(
+		__dirname + "/i18n/strings_" + lang_code + ".json",
+		__dirname + "/i18n/strings_en.json",
+		UIConfigFile
+	)
+		.then(function(uiconf)
+		{
+			//var i = 0;
+			//todo this is not needed. We need to get the last volume, to configure it
+			events.forEach(function(e) {
 
                 // Strings for data fields
                 var s1 = e.concat("Enabled");
@@ -228,34 +230,8 @@ IRControl.prototype.saveConfig = function (data) {
     // when we save the config, we need to save the volume state of MPD
     var self = this;
 
-    //self.clearGPIOs();
-
-    // Loop through standard events
-    events.forEach(function (item) {
-
-        // Element names
-        var e1 = item.concat("Enabled");
-        var e2 = item.concat("Pin");
-        var e3 = item.concat("State");
-
-        // Strings for config
-        var c1 = item.concat(".enabled");
-        var c2 = item.concat(".pin");
-        var c3 = item.concat(".state");
-
-        config.set(c1, data[e1]);
-        config.set(c2, data[e2]["value"]);
-        config.set(c3, data[e3]["value"]);
-    });
-
-    self.log("Saving config");
-    self.recreateState();
-
-    // Pins have been reset to fire off system startup
-    self.handleEvent(SYSTEM_STARTUP);
-
-    // retrieve playing status
-    socket.emit("getState", "");
+	self.log("Saving config");
+	config.set('volume',this.savedDesiredConfig.volume)
 
     self.commandRouter.pushToastMessage('success', self.getI18nString("PLUGIN_CONFIGURATION"), self.getI18nString("SETTINGS_SAVED"));
 };
@@ -365,13 +341,13 @@ IRControl.prototype.compareStates = function (data) {
 
 // Create ir objects for future events
 // todo this function needs to be replaced with ir specific stuff 
-IRControl.prototype.recreateState = function () {
-    var self = this;
-
-    self.log("Reading config and setting volumes");
-    self.log("recreateState was called")
-
-    return libQ.resolve();
+IRControl.prototype.recreateState = function() {
+	var self = this;
+	self.log("Reading config and setting volumes");
+	self.log("recreateState was called")
+	config.loadFile(configFile);
+	this.savedDesiredConfig.volume=config.volume;
+	return libQ.resolve();
 };
 
 // Release our ircontrol objects
@@ -383,14 +359,7 @@ IRControl.prototype.saveStatesToFile = function () {
     config.set("volume", savedDesiredConfig.volume)
     config.save();
 
-    //self.GPIOs.forEach(function(gpio) {
-    //	self.log("Destroying GPIO " + gpio.pin);
-    //	gpio.unexport();
-    //});
-
-    //self.GPIOs = [];
-
-    return libQ.resolve();
+	return libQ.resolve();
 };
 
 // Playing status has changed
@@ -408,21 +377,29 @@ IRControl.prototype.statusChanged = function (state) {
 
 // An event has happened so do something about it
 // handleevent needs to look at the event and check all the stuff that mpd has to offer 
-IRControl.prototype.handleEvent = function (e, state = {"volume": 1}) {
-    var self = this;
-    self.log('handleEvent was called for ' + e)
-    self.log('handleEvent full state is like:' + state.volume);
-    var desiredstate = {"volume": state.volume}
-    self.setVolume(state.volume);
-    if (e == MUSIC_PAUSE) {
-        self.turnOffAmplifierWithDelay();
-    }
-    if (e == MUSIC_STOP) {
-        self.turnOffAmplifierWithDelay();
-    }
-    if (e == MUSIC_PLAY) {
-        self.turnOnAmplifier();
-    }
+IRControl.prototype.handleEvent = function(e,state= {"volume":1}) {
+	var self = this;
+	self.log('handleEvent was called for '+e)
+	self.log('handleEvent full state is like:'+state.volume);
+	desiredstate = {"volume":state.volume}
+	self.setVolume(state.volume);
+	if (e == MUSIC_PAUSE){
+		self.turnOffAmplifierWithDelay();
+	}
+	if (e == MUSIC_STOP){
+		self.turnOffAmplifierWithDelay();
+	}
+	if (e == MUSIC_PLAY){
+		self.turnOnAmplifier();
+	}
+	if (e == SYSTEM_SHUTDOWN){
+		self.saveConfig()
+		self.tu
+		// handle system shutdown
+	}
+	if (e == SYSTEM_STARTUP){
+		// handle system startup
+	}
 }
 
 // Output to log
