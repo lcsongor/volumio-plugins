@@ -1,0 +1,153 @@
+ defaults.pcm.card 1
+ defaults.ctl.card 1
+
+ctl.!default {
+    type hw
+    card 1
+}
+
+pcm.equal {
+    type plug;
+    slave.pcm plugequal;
+}
+ctl.equal {
+   type equal;
+   module "Eq10";
+}
+
+pcm.plugequal {
+   type equal;
+   module "Eq10";
+   slave {
+     pcm ch51
+   }
+   hint {show on;description "Equalizer for ch51"}
+}
+
+pcm.!default {
+    type hw
+    card 1
+}
+ctl.!default {
+    type hw
+    card 1
+}
+
+pcm.!default {
+    type route
+    slave.pcm surround51
+    slave.channels 6
+    ttable.0.0 1
+    ttable.1.1 1
+    ttable.0.2 1
+    ttable.1.3 1
+    ttable.0.4 0.2
+    ttable.1.4 0.2
+    ttable.0.5 0.05
+    ttable.1.5 0.05
+}
+
+pcm.ch51 {
+    slave.channels 6
+    slave.pcm surround51
+    type route
+    ttable.0.0 1
+    ttable.1.1 1
+    ttable.0.2 1
+    ttable.1.3 1
+    ttable.0.4 0.2
+    ttable.1.4 0.2
+    ttable.0.5 0.05
+    ttable.1.5 0.05
+}
+
+pcm.ch1 {
+type dmix
+ipc_key 1024
+slave {         channels 6
+		pcm "hw:1,0"
+		period_time 0
+		period_size 1024
+		buffer_size 4096
+	}
+bindings {
+		0 0
+	}
+
+}
+
+pcm.ch2 {
+type dmix
+ipc_key 1024
+slave {         channels 6
+                pcm "hw:1,0"
+                period_time 0
+                period_size 1024
+                buffer_size 4096
+        }
+bindings {
+                0 1
+        }
+
+}
+
+pcm.ch3 {
+type dmix
+ipc_key 1024
+slave {         channels 6
+                pcm "hw:1,0"
+                period_time 0
+                period_size 1024
+                buffer_size 4096
+        }
+bindings {
+                0 2
+        }
+
+}
+
+pcm.ch4 {
+type dmix
+ipc_key 1024
+slave {         channels 6
+                pcm "hw:1,0"
+                period_time 0
+                period_size 1024
+                buffer_size 4096
+        }
+bindings {
+                0 3
+        }
+
+}
+
+pcm.ch5 {
+type dmix
+ipc_key 1024
+slave {         channels 6
+                pcm "hw:1,0"
+                period_time 0
+                period_size 1024
+                buffer_size 4096
+        }
+bindings {
+                0 4
+        }
+
+}
+
+
+pcm.ch6 {
+type dmix
+ipc_key 1024
+slave {         channels 6
+                pcm "hw:1,0"
+                period_time 0
+                period_size 1024
+                buffer_size 4096
+        }
+bindings {
+                0 5
+        }
+
+}
