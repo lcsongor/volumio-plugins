@@ -21,6 +21,7 @@
 		"socket.io-client": "^1.4.5",
 		"sleep": "^5.1.1",
 		"child_process": "",
-		"lirc-client": "^2.0.0"
+		"lirc-client": "^2.0.0",
+		"observe": "^1.4.1"
 	}
 }
