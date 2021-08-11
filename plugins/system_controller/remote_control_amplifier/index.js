@@ -39,7 +39,38 @@ module.exports = IRControl;
 
 
 // Constructor
-// on the constructor, this needs to be heavily changed to initializa all the IR specific stuff 
+// on the constructor, this needs to be heavily changed to initializa all the IR specific stuff
+
+
+var ObservableProperty = function ObservableProperty(initialValue) {
+    'use strict';
+
+    var self = this;
+
+    var value = initialValue;
+
+    this.value = initialValue;
+
+    (Object.defineProperty(this, 'value', {
+        get: function () {
+            return value;
+        },
+        set: function (newValue) {
+            if (value !== newValue) {
+                console.log('Changing value' + value)
+                value = newValue;
+                self.onChanged(value);
+            }
+        },
+        enumerable: true
+    }));
+
+    this.onChanged = function () {
+        return true;
+    };
+};
+
+
 function IRControl(context) {
     var self = this;
     self.context = context;
@@ -53,18 +84,30 @@ function IRControl(context) {
     self.log('Initializing IRControl');
     self.amplifierOn = false;
     self.savedDesiredConfig = {"volume": 0};
-    self.actualState = {};
-    self.desiredState = {
-        value: {"volume":0},
-        letMeKnow() {
-            self.log(`The variable has changed to ${this.testVar}`);
-        },
-        get testVar() {
-            return this.value;
-        },
-        set testVar(value) {
-            this.value = value;
-            this.letMeKnow();
+    self.actualState = new ObservableProperty({"volume": 0});
+    self.actualState.onChanged = function () {
+        {
+            self.log('onChangeActualstate was called');
+            if (self.desiredState.value.volume > self.actualState.volume) {
+                self.log('onChangeActualstate: Changed volume to:' + self.desiredState.value.volume);
+                self.increaseVolume();
+            }
+            if (self.desiredState.value.volume < self.actualState.volume) {
+                self.log('onChangeActualstate: Changed volume to:' + self.desiredState.value.volume);
+                self.decreaseVolume();
+            }
+        };
+    }
+    self.desiredState = new ObservableProperty({"volume": 0});
+    self.desiredState.onChanged = function () {
+        self.log('onChanged was called');
+        if (self.desiredState.value.volume > self.actualState.volume) {
+            self.log('desireStateWatcher: Changed volume to:' + self.desiredState.value.volume);
+            self.increaseVolume();
+        }
+        if (self.desiredState.value.volume < self.actualState.volume) {
+            self.log('desireStateWatcher: Changed volume to:' + self.desiredState.value.volume);
+            self.decreaseVolume();
         }
     };
 }
@@ -101,16 +144,16 @@ IRControl.prototype.getConfigurationFiles = function () {
     return ["config.json"];
 }
 
-IRControl.prototype.desireStateWatcher = function () {
-    var self = this;
-        if (self.desiredState.volume > self.actualState.volume) {
-            this.log('desireStateWatcher: Changed volume to:'+self.desiredState.volume);
-            self.increaseVolume();
-        }
-        if (self.desiredState.volume < self.actualState.volume) {
-            this.log('desireStateWatcher: Changed volume to:'+self.desiredState.volume);
-            self.decreaseVolume();
-        }
+IRControl.prototype.desireStateWatcher = function (self) {
+
+    if (self.desiredState.value.volume > self.actualState.volume) {
+        this.log('desireStateWatcher: Changed volume to:' + self.desiredState.value.volume);
+        self.increaseVolume();
+    }
+    if (self.desiredState.value.volume < self.actualState.volume) {
+        this.log('desireStateWatcher: Changed volume to:' + self.desiredState.value.volume);
+        self.decreaseVolume();
+    }
 }
 
 
@@ -271,7 +314,8 @@ IRControl.prototype.saveDesiredState = function (data) {
 
 IRControl.prototype.setVolume = async function (newvolume) {
     var currentvolume = this.savedDesiredConfig.volume
-    this.desiredState = {"volume" : newvolume}
+    this.log('Setting desired volume to :' + newvolume)
+    this.desiredState.value = {"volume": newvolume}
     this.savedDesiredConfig = {"volume": newvolume}
 }
 
