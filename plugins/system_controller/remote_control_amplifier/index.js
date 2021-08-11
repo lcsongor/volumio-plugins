@@ -62,7 +62,8 @@ IRControl.prototype.onVolumioStart = function () {
     self.log('onVolumioStart');
     var configFile = self.commandRouter.pluginManager.getConfigurationFile(self.context, "config.json");
     config.loadFile(configFile);
-    this.savedDesiredConfig.volume = config.volume;
+    this.savedDesiredConfig.volume = config.data.volume;
+    this.amplifierOn = false; 
     self.log(`Detected ${self.piBoard.name}`);
     self.log(`40 GPIOs: ${self.piBoard.fullGPIO}`);
     self.log("Initialized");
@@ -220,7 +221,7 @@ IRControl.prototype.getUIConfig = function () {
             defer.resolve(uiconf);
         })
         .fail(function () {
-            defer.reject(new Error());
+            defer.reject(new Error('Failed to load configuration'));
         });
 
     return defer.promise;
@@ -233,6 +234,7 @@ IRControl.prototype.saveConfig = function (data) {
 
 	self.log("Saving config");
 	config.set('volume',this.savedDesiredConfig.volume)
+    config.set('amplifierOn',this.amplifierOn)
 
     self.commandRouter.pushToastMessage('success', self.getI18nString("PLUGIN_CONFIGURATION"), self.getI18nString("SETTINGS_SAVED"));
 };
@@ -366,6 +368,7 @@ IRControl.prototype.saveStatesToFile = function () {
 
     self.log("saveStatesToFile was called")
     config.set("volume", this.savedDesiredConfig.volume)
+    config.set("amplifierOn", this.amplifierOn)
     config.save();
 
 	return libQ.resolve();
@@ -407,6 +410,7 @@ IRControl.prototype.handleEvent = function(e,state= {"volume":1}) {
 		// handle system shutdown
 	}
 	if (e == SYSTEM_STARTUP){
+        self.amplifierOn = false;
 		// handle system startup
 	}
 }
