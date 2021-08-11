@@ -254,6 +254,7 @@ IRControl.prototype.saveDesiredState = function (data) {
 IRControl.prototype.setVolume = async function (newvolume) {
     var self = this;
 
+    var indexer = 0;
     self.desiredVolume = newvolume;
 
     while (self.volumeOperationInProgress) {
@@ -263,8 +264,11 @@ IRControl.prototype.setVolume = async function (newvolume) {
 
     if (self.desiredVolume < self.savedDesiredConfig.volume) {
         self.volumeOperationInProgress = true;
-        self.log("Decreasing volume from " + self.savedDesiredConfig.volume + " to " + self.desiredVolume)
-        for (var i = 0; i < self.savedDesiredConfig.volume - self.desiredVolume; i++) {
+        indexer = self.savedDesiredConfig.volume - self.desiredVolume
+        self.log("Decreasing volume from " + self.savedDesiredConfig.volume + " to " + self.desiredVolume + ' in ' + indexer + ' steps ');
+
+
+        for (var i = 0; i < indexer; i++) {
             self.decreaseVolume();
             self.log('decreasing Waiting for ' + String(keypressTimeOut));
             await new Promise(resolve => setTimeout(resolve, keypressTimeOut));
@@ -272,8 +276,9 @@ IRControl.prototype.setVolume = async function (newvolume) {
     }
     if (self.desiredVolume > self.savedDesiredConfig.volume) {
         self.volumeOperationInProgress = true;
-        self.log("Increasing volume from " + self.savedDesiredConfig.volume + " to " + self.desiredVolume)
-        for (var i = 0; i < self.desiredVolume - self.savedDesiredConfig.volume; i++) {
+        indexer = self.desiredVolume - self.savedDesiredConfig.volume
+        self.log("Increasing volume from " + self.savedDesiredConfig.volume + " to " + self.desiredVolume + ' in ' + indexer + ' steps');
+        for (var i = 0; i < indexer; i++) {
             self.increaseVolume();
             self.log('increasing Waiting for ' + String(keypressTimeOut));
             await new Promise(resolve => setTimeout(resolve, keypressTimeOut));
