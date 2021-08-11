@@ -53,6 +53,8 @@ function IRControl(context) {
     self.log('Initializing IRControl');
     self.amplifierOn = false;
     self.savedDesiredConfig = {"volume": 0};
+    self.desiredVolume = 0;
+    self.volumeOperationInProgress = false;
 }
 
 // Volumio is starting
@@ -62,8 +64,10 @@ IRControl.prototype.onVolumioStart = function () {
     self.log('onVolumioStart');
     var configFile = self.commandRouter.pluginManager.getConfigurationFile(self.context, "config.json");
     config.loadFile(configFile);
-    this.savedDesiredConfig.volume = config.data.volume;
-    this.amplifierOn = false;
+    self.savedDesiredConfig.volume = config.data.volume;
+    self.desiredVolume = self.savedDesiredConfig.volume;
+    self.amplifierOn = false;
+
     self.log(`Detected ${self.piBoard.name}`);
     self.log(`40 GPIOs: ${self.piBoard.fullGPIO}`);
     self.log("Initialized");
@@ -96,7 +100,7 @@ IRControl.prototype.onStart = function () {
     // read and parse status once
     socket.emit("getState", "");
     socket.once("pushState", self.statusChanged.bind(self));
-    this.log('onStart was called')
+    self.log('onStart was called')
     // listen to every subsequent status report from Volumio
     // status is pushed after every playback action, so we will be
     // notified if the status changes
@@ -203,7 +207,7 @@ IRControl.prototype.getUIConfig = function () {
 
                 // Extend the find method on the content array - mental but works
                 uiconf.sections[0].content.findItem = function (obj) {
-                    return this.find(function (item) {
+                    return self.find(function (item) {
                         for (var prop in obj)
                             if (!(prop in item) || obj[prop] !== item[prop])
                                 return false;
@@ -232,8 +236,8 @@ IRControl.prototype.saveConfig = function (data) {
     var self = this;
 
     self.log("Saving config");
-    config.set('volume', this.savedDesiredConfig.volume)
-    config.set('amplifierOn', this.amplifierOn)
+    config.set('volume', self.savedDesiredConfig.volume)
+    config.set('amplifierOn', self.amplifierOn)
 
     self.commandRouter.pushToastMessage('success', self.getI18nString("PLUGIN_CONFIGURATION"), self.getI18nString("SETTINGS_SAVED"));
 };
@@ -241,62 +245,76 @@ IRControl.prototype.saveConfig = function (data) {
 IRControl.prototype.saveDesiredState = function (data) {
     // not yet used
     var self = this;
-    this.savedDesiredConfig.set("volume", data.volume)
-    this.savedDesiredConfig.set("on", data.on)
+    self.savedDesiredConfig.set("volume", data.volume)
+    self.savedDesiredConfig.set("on", data.on)
     return libQ.resolve();
 };
 
 
 IRControl.prototype.setVolume = async function (newvolume) {
     var self = this;
-    var currentvolume = this.savedDesiredConfig.volume
 
-    if (newvolume < currentvolume) {
-        self.log("Decreasing volume from " + currentvolume + " to " + newvolume)
-        for (var i = 0; i < currentvolume - newvolume; i++) {
+    self.desiredVolume = newvolume;
+
+    while (self.volumeOperationInProgress) {
+        self.log('Waiting for operation in progress' + String(keypressTimeOut));
+        await new Promise(resolve => setTimeout(resolve, keypressTimeOut));
+    }
+
+    if (self.desiredVolume < self.savedDesiredConfig.volume) {
+        self.volumeOperationInProgress = true;
+        self.log("Decreasing volume from " + self.savedDesiredConfig.volume + " to " + self.desiredVolume)
+        for (var i = 0; i < self.savedDesiredConfig.volume - self.desiredVolume; i++) {
             self.decreaseVolume();
             self.log('decreasing Waiting for ' + String(keypressTimeOut));
             await new Promise(resolve => setTimeout(resolve, keypressTimeOut));
         }
     }
-    if (newvolume > currentvolume) {
-        self.log("Increasing volume from " + currentvolume + " to " + newvolume)
-        for (var i = 0; i < newvolume - currentvolume; i++) {
+    if (self.desiredVolume > self.savedDesiredConfig.volume) {
+        self.volumeOperationInProgress = true;
+        self.log("Increasing volume from " + self.savedDesiredConfig.volume + " to " + self.desiredVolume)
+        for (var i = 0; i < self.desiredVolume - self.savedDesiredConfig.volume; i++) {
             self.increaseVolume();
             self.log('increasing Waiting for ' + String(keypressTimeOut));
             await new Promise(resolve => setTimeout(resolve, keypressTimeOut));
         }
     }
-    this.savedDesiredConfig = {"volume": newvolume}
+    self.volumeOperationInProgress = false;
+    self.savedDesiredConfig = {"volume": self.desiredVolume}
 }
 
 IRControl.prototype.increaseVolume = function () {
+    var self = this;
     lirc.sendOnce(devicename, vol_up_button).catch(error => {
-        if (error) this.log(error);
-        self.log('Increased volume by a bit');
+        if (error) self.log(error);
     });
+    self.log('Increased volume by a bit');
+    self.savedDesiredConfig.volume = self.savedDesiredConfig.volume + 1;
 }
 
 IRControl.prototype.decreaseVolume = function () {
-
+    var self = this;
     lirc.sendOnce(devicename, vol_down_button).catch(error => {
-        if (error) this.log(error);
+        if (error) self.log(error);
         self.log('Decreased volume by a bit');
     });
-
+    self.log('decreased volume by a bit');
+    self.savedDesiredConfig.volume = self.savedDesiredConfig.volume - 1;
 }
 
 IRControl.prototype.turnItOff = function () {
+    var self = this;
     lirc.sendOnce(devicename, stop_button).catch(error => {
-        this.log('Sending:' + stop_button);
-        if (error) this.log(error);
+        self.log('Sending:' + stop_button);
+        if (error) self.log(error);
     });
 }
 
 IRControl.prototype.turnItOn = function () {
+    var self = this;
     lirc.sendOnce(devicename, start_button).catch(error => {
-        this.log('Sending:' + start_button);
-        if (error) this.log(error);
+        self.log('Sending:' + start_button);
+        if (error) self.log(error);
     });
 }
 
@@ -354,7 +372,7 @@ IRControl.prototype.recreateState = function () {
     self.log("recreateState was called")
     var configFile = self.commandRouter.pluginManager.getConfigurationFile(self.context, "config.json");
     config.loadFile(configFile);
-    this.savedDesiredConfig.volume = config.volume;
+    self.savedDesiredConfig.volume = config.volume;
     return libQ.resolve();
 };
 
@@ -364,8 +382,8 @@ IRControl.prototype.saveStatesToFile = function () {
     var self = this;
 
     self.log("saveStatesToFile was called")
-    config.set("volume", this.savedDesiredConfig.volume)
-    config.set("amplifierOn", this.amplifierOn)
+    config.set("volume", self.savedDesiredConfig.volume)
+    config.set("amplifierOn", self.amplifierOn)
     config.save();
 
     return libQ.resolve();
@@ -390,7 +408,7 @@ IRControl.prototype.handleEvent = function (e, state = {"volume": 1}) {
     var self = this;
     self.log('handleEvent was called for ' + e)
     self.log('handleEvent volume state is like:' + state.volume);
-    this.saveDesiredState = {"volume": state.volume};
+    self.saveDesiredState = {"volume": state.volume};
     self.setVolume(state.volume);
     if (e == MUSIC_PAUSE) {
         self.turnOffAmplifierWithDelay();
@@ -428,7 +446,7 @@ IRControl.prototype.load18nStrings = function () {
     var self = this;
 
     try {
-        var language_code = this.commandRouter.sharedVars.get('language_code');
+        var language_code = self.commandRouter.sharedVars.get('language_code');
         self.i18nStrings = fs.readJsonSync(__dirname + '/i18n/strings_' + language_code + ".json");
     } catch (e) {
         self.i18nStrings = fs.readJsonSync(__dirname + '/i18n/strings_en.json');
