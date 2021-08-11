@@ -323,7 +323,7 @@ IRControl.prototype.increaseVolume = async function () {
     lirc.sendOnce(devicename, vol_up_button).catch(error => {
         if (error) this.log(error);
         this.log('Increased volume by a bit');
-        this.actualState.volume += 1;
+        this.actualState.value.volume += 1;
     });
     await new Promise(resolve => setTimeout(resolve, keypressTimeOut));
 }
@@ -333,7 +333,7 @@ IRControl.prototype.decreaseVolume = async function () {
     lirc.sendOnce(devicename, vol_down_button).catch(error => {
         if (error) this.log(error);
         self.log('Decreased volume by a bit');
-        this.actualState.volume -= 1;
+        this.actualState.value.volume -= 1;
     });
     await new Promise(resolve => setTimeout(resolve, keypressTimeOut));
 
