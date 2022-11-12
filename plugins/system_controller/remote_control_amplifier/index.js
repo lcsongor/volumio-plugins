@@ -30,7 +30,7 @@ var vol_up_button = 'KEY_VOLUMEUP';
 
 // behavior related settings -
 var stopToTurnOffDelay = 60;
-var keypressTimeOut = 100;
+var keypressTimeOut = 200;
 
 // Events that we can detect and do something
 const events = [SYSTEM_STARTUP, SYSTEM_SHUTDOWN, MUSIC_PLAY, MUSIC_PAUSE, MUSIC_STOP, VOLUME_CHANGE];
