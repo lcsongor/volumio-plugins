@@ -4,24 +4,24 @@
 	"description": "IR control of an amplifier",
 	"main": "index.js",
 	"scripts": {
-		"test": "echo \"Error: no test specified\" && exit 1"
+			"test": "echo \"Error: no test specified\" && exit 1"
 	},
 	"author": "lcsongor",
 	"license": "ISC",
 	"volumio_info": {
-		"prettyName": "Amplifier controller",
-		"icon": "fa-microchip",
-		"plugin_type": "system_controller",
-		"boot_priority": 1
+			"prettyName": "Amplifier controller",
+			"icon": "fa-microchip",
+			"plugin_type": "system_controller",
+			"boot_priority": 1
 	},
 	"dependencies": {
-		"child_process": "",
-		"fs-extra": "^0.28.0",
-		"kew": "^0.7.0",
-		"lirc-client": "^2.0.0",
-		"observe": "^1.4.1",
-		"sleep": "^5.1.1",
-		"socket.io-client": "^1.4.5",
-		"v-conf": "^1.4.0"
+			"child_process": "",
+			"fs-extra": "^0.28.0",
+			"kew": "^0.7.0",
+			"lirc-client": "^2.0.0",
+			"observe": "^1.4.1",
+			"sleep": "^5.1.1",
+			"socket.io-client": "^1.4.5",
+			"v-conf": "^1.4.0"
 	}
 }

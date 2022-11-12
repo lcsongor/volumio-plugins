@@ -21,16 +21,16 @@ const MUSIC_PAUSE = "musicPause";
 const MUSIC_STOP = "musicStop";
 const VOLUME_CHANGE = "SetAlsaVolume";
 
-// IR device related settings - these are only defaults, subject to change from loading config 
+// IR device related settings - these are only defaults, subject to change from loading config
 var devicename = 'receiver';
 var start_button = 'KEY_POWER';
 var stop_button = 'KEY_POWER2';
 var vol_down_button = 'KEY_VOLUMEDOWN';
 var vol_up_button = 'KEY_VOLUMEUP';
 
-// behavior related settings - 
+// behavior related settings -
 var stopToTurnOffDelay = 60;
-var keypressTimeOut = 100;
+var keypressTimeOut = 200;
 
 // Events that we can detect and do something
 const events = [SYSTEM_STARTUP, SYSTEM_SHUTDOWN, MUSIC_PLAY, MUSIC_PAUSE, MUSIC_STOP, VOLUME_CHANGE];
@@ -39,7 +39,7 @@ module.exports = IRControl;
 
 
 // Constructor
-// on the constructor, this needs to be heavily changed to initializa all the IR specific stuff 
+// on the constructor, this needs to be heavily changed to initializa all the IR specific stuff
 function IRControl(context) {
     var self = this;
     self.context = context;
@@ -58,7 +58,7 @@ function IRControl(context) {
 }
 
 // Volumio is starting
-// read the states from the config file 
+// read the states from the config file
 IRControl.prototype.onVolumioStart = function () {
     var self = this;
     self.log('onVolumioStart');
@@ -370,7 +370,11 @@ IRControl.prototype.compareStates = function (data) {
 
 
 // Create ir objects for future events
+<<<<<<< HEAD
 // todo this function needs to be replaced with ir specific stuff 
+=======
+// todo this function needs to be replaced with ir specific stuff
+>>>>>>> a1d99df55e232991c52b5eb6c40113756a382a8b
 IRControl.prototype.recreateState = function () {
     var self = this;
     self.log("Reading config and setting volumes");
@@ -382,7 +386,7 @@ IRControl.prototype.recreateState = function () {
 };
 
 // Release our ircontrol objects
-// todo not sure that this is necessary in our case 
+// todo not sure that this is necessary in our case
 IRControl.prototype.saveStatesToFile = function () {
     var self = this;
 
@@ -408,7 +412,11 @@ IRControl.prototype.statusChanged = function (state) {
 }
 
 // An event has happened so do something about it
+<<<<<<< HEAD
 // handleevent needs to look at the event and check all the stuff that mpd has to offer 
+=======
+// handleevent needs to look at the event and check all the stuff that mpd has to offer
+>>>>>>> a1d99df55e232991c52b5eb6c40113756a382a8b
 IRControl.prototype.handleEvent = function (e, state = {"volume": 1}) {
     var self = this;
     self.log('handleEvent was called for ' + e)
@@ -506,7 +514,7 @@ IRControl.prototype.setSelectElementStr = function (obj, field, value) {
 
 // Retrieves information about the Pi hardware
 // Ignores the compute module for now
-// todo actually we need to check the status of the infrared devices 
+// todo actually we need to check the status of the infrared devices
 IRControl.prototype.getPiBoardInfo = function () {
     var self = this;
     var regex = "(?:Pi)" +
@@ -544,14 +552,14 @@ IRControl.prototype.getPiBoardInfo = function () {
 
         if (pi.isZero) // We found a Pi Zero
             pi.boardNumber = 0;
-        else if (groups[1])	// We have Pi with a model number; i.e. 2, 3
+        else if (groups[1])     // We have Pi with a model number; i.e. 2, 3
             pi.boardNumber = Number(groups[1].trim());
 
         // Do we have 40 GPIOs or not?
         //if ((pi.boardNumber == 1)  && !pi.isModelPlus)
-        //	pi.fullGPIO = false;
+        //      pi.fullGPIO = false;
         //else
-        //	pi.fullGPIO = true;
+        //      pi.fullGPIO = true;
     } else {
         // This should never happen
         pi.name = "Unknown";
