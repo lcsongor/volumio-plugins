@@ -370,11 +370,7 @@ IRControl.prototype.compareStates = function (data) {
 
 
 // Create ir objects for future events
-<<<<<<< HEAD
-// todo this function needs to be replaced with ir specific stuff 
-=======
 // todo this function needs to be replaced with ir specific stuff
->>>>>>> a1d99df55e232991c52b5eb6c40113756a382a8b
 IRControl.prototype.recreateState = function () {
     var self = this;
     self.log("Reading config and setting volumes");
@@ -412,11 +408,7 @@ IRControl.prototype.statusChanged = function (state) {
 }
 
 // An event has happened so do something about it
-<<<<<<< HEAD
-// handleevent needs to look at the event and check all the stuff that mpd has to offer 
-=======
 // handleevent needs to look at the event and check all the stuff that mpd has to offer
->>>>>>> a1d99df55e232991c52b5eb6c40113756a382a8b
 IRControl.prototype.handleEvent = function (e, state = {"volume": 1}) {
     var self = this;
     self.log('handleEvent was called for ' + e)
