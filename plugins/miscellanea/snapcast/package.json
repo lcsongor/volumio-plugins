@@ -55,7 +55,7 @@
 		"path-is-absolute": "^1.0.1",
 		"rimraf": "^2.5.4",
 		"socket.io-client": "^1.4.8",
-		"socket.io-parser": "^2.2.6",
+		"socket.io-parser": "^3.3.3",
 		"to-array": "^0.1.4",
 		"ultron": "^1.0.2",
 		"utf8": "^2.1.0",
