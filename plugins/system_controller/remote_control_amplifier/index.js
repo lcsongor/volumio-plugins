@@ -291,7 +291,7 @@ IRControl.prototype.setVolume = async function (newvolume) {
 IRControl.prototype.increaseVolume = function () {
     var self = this;
     lirc.sendOnce(devicename, vol_up_button).catch(error => {
-        if (error) self.log(error);
+        if (error) self.log('error occurred during increaseVolumio'+ String(error));
     });
     self.log('Increased volume by a bit');
     self.savedDesiredConfig.volume = self.savedDesiredConfig.volume + 1;
@@ -300,7 +300,7 @@ IRControl.prototype.increaseVolume = function () {
 IRControl.prototype.decreaseVolume = function () {
     var self = this;
     lirc.sendOnce(devicename, vol_down_button).catch(error => {
-        if (error) self.log(error);
+        if (error) self.log('error occurred during decreaseVolume'+ String(error));
         self.log('Decreased volume by a bit');
     });
     self.log('decreased volume by a bit');
@@ -311,7 +311,7 @@ IRControl.prototype.turnItOff = function () {
     var self = this;
     lirc.sendOnce(devicename, stop_button).catch(error => {
         self.log('Sending:' + stop_button);
-        if (error) self.log(error);
+        if (error) self.log('error occurred during turnItOff'+ String(error));
     });
 }
 
@@ -319,7 +319,7 @@ IRControl.prototype.turnItOn = function () {
     var self = this;
     lirc.sendOnce(devicename, start_button).catch(error => {
         self.log('Sending:' + start_button);
-        if (error) self.log(error);
+        if (error) self.log('error occurred during turnItOn'+ String(error));
     });
 }
 
