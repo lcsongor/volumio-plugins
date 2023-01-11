@@ -45,7 +45,7 @@
 		"minimatch": "^3.0.3",
 		"callsite": "^1.0.0",
 		"multimap": "^1.0.1",
-		"debug": "^2.6.8",
+		"debug": "^3.1.0",
 		"has-cors": "^1.1.0",
 		"once": "^1.4.0",
 		"options": "^0.0.6",
