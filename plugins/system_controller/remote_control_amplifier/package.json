@@ -21,7 +21,7 @@
 			"lirc-client": "^2.0.0",
 			"observe": "^1.4.1",
 			"sleep": "^5.1.1",
-			"socket.io-client": "^1.4.5",
+			"socket.io-client": "^4.6.1",
 			"v-conf": "^1.4.0"
 	}
 }
