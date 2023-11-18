@@ -12,7 +12,7 @@
 			"prettyName": "Amplifier controller",
 			"icon": "fa-microchip",
 			"plugin_type": "system_controller",
-			"boot_priority": 1
+			"boot_priority": 10
 	},
 	"dependencies": {
 			"child_process": "",
@@ -27,5 +27,6 @@
 	"engines": {
 		"volumio": ">=3",
 		"node": ">=14.15.4"
-	}
+	},
+	"repository": "https://github.dev/lcsongor/volumio-plugins"
 }
