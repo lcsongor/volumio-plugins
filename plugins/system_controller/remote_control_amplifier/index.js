@@ -60,12 +60,11 @@ IRControl.prototype.onVolumioStart = function () {
     this.log('onVolumioStart');
     var configFile = self.commandRouter.pluginManager.getConfigurationFile(self.context, "config.json");
     config.loadFile(configFile);
-    this.savedDesiredConfig.volume = config.data.volume;
-    this.log(`Loaded configuration from ${self.savedDesiredConfig}`);
-    this.desiredVolume = self.savedDesiredConfig.volume;
+    // this.savedDesiredConfig.volume = config.data.amplifierType;
+    // this.log(`Loaded configuration from ${self.savedDesiredConfig}`);
+    // this.desiredVolume = self.savedDesiredConfig.volume;
     this.amplifierOn = false;
     this.log("Initialized");
-
     return libQ.resolve();
 }
 
@@ -105,6 +104,7 @@ IRControl.prototype.volumeListener = function () {
     self.log("sent getState");
     socket.on("connect", function(){
         socket.on("pushState", function(state) {
+            self.log(`Received ${state}`);
             if (state && state.volume !== undefined && state.mute !== undefined && Number.isInteger(state.volume)) {
                 let volume = parseInt(state.volume);
                 let mute = state.mute;
@@ -115,7 +115,7 @@ IRControl.prototype.volumeListener = function () {
                 if (state.service !== undefined) {
                     currentService = state.service;
                 }
-                self.statusChanged(state);
+                // self.statusChanged(state);
             }
         });
     });
@@ -195,13 +195,14 @@ IRControl.prototype.getUIConfig = function () {
     self.commandRouter.i18nJson(
         __dirname + "/i18n/strings_" + lang_code + ".json",
         __dirname + "/i18n/strings_en.json",
-        UIConfigFile
-    )
+        UIConfigFile)
         .then(function (uiconf) {
-            uiconf.sections[0].content[0].value = self.config.get('amplifierType');
+            uiconf.sections[0].content[0].value = self.config.get('amplifierType','');
+            self.log(`getUIConfig sending uiconf`);
             defer.resolve(uiconf);
         })
         .fail(function () {
+            self.log(`Error occurred during getUIConff`);
             defer.reject(new Error('Failed to load configuration'));
         });
 
