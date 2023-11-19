@@ -55,7 +55,7 @@ IRControl.prototype.onVolumioStart = function () {
     var configFile = self.commandRouter.pluginManager.getConfigurationFile(self.context, "config.json");
     this.config = new (require('v-conf'))();
     this.config.loadFile(configFile);
-    this.devicename = this.config.get('amplifierType','receiver');
+    this.devicename = 'receiver';
     this.log('Configuration has been loaded in:' + JSON.stringify(config));
     this.amplifierOn = false;
     this.log("Initialized");
@@ -321,8 +321,8 @@ IRControl.prototype.handleEvent = function (e, state = {"volume": 1}) {
 // this function will turn off the amplifier
 IRControl.prototype.turnItOff = function () {
     var self = this;
-    self.debug(`Sending ${this.devicename} the button ${stop_button}`)
-    lirc.sendOnce(this.devicename, stop_button).catch(error => {
+    self.debug(`Sending ${self.devicename} the button ${stop_button}`)
+    lirc.sendOnce(self.devicename, stop_button).catch(error => {
         if (error) self.error('error occurred during turnItOff'+ String(error));
     });
 }
@@ -331,7 +331,7 @@ IRControl.prototype.turnItOff = function () {
 IRControl.prototype.turnItOn = function () {
     var self = this;
     self.debug(`Sending ${this.devicename} the button ${start_button}`)
-    lirc.sendOnce(this.devicename, start_button).catch(error => {
+    lirc.sendOnce(self.devicename, start_button).catch(error => {
         if (error) self.error('error occurred during turnItOn'+ String(error));
     });
 }
