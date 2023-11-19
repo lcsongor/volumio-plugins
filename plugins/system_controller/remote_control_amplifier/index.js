@@ -18,7 +18,6 @@ const MUSIC_STOP = "musicStop";
 const lirc = require('lirc-client')({
     path: '/var/run/lirc/lircd'
 });
-var devicename = 'receiver';
 var start_button = 'KEY_POWER';
 var stop_button = 'KEY_POWER2';
 var vol_down_button = 'KEY_VOLUMEDOWN';
@@ -54,7 +53,10 @@ IRControl.prototype.onVolumioStart = function () {
     var self = this;
     this.log('onVolumioStart');
     var configFile = self.commandRouter.pluginManager.getConfigurationFile(self.context, "config.json");
-    config.loadFile(configFile);
+    this.config = new (require('v-conf'))();
+    this.config.loadFile(configFile);
+    this.devicename = this.config.get('amplifierType','receiver');
+    this.log('Configuration has been loaded in:' + JSON.stringify(config));
     this.amplifierOn = false;
     this.log("Initialized");
     return libQ.resolve();
@@ -69,10 +71,7 @@ IRControl.prototype.getConfigurationFiles = function () {
 // on stopping volumio, we may need to set the amplifier to play back radio or something (not sure yet)
 IRControl.prototype.onVolumioShutdown = function () {
     var self = this;
-    socket.emit("getState", "");
-    socket.on("pushState", function (state) {
-        // self.handleEvent(SYSTEM_SHUTDOWN, state);
-    })
+    self.handleEvent(SYSTEM_SHUTDOWN, state);
     return libQ.resolve();
 };
 
@@ -98,7 +97,7 @@ IRControl.prototype.onStop = function () {
     //todo let's save all the states of volumio to the config file
     var self = this;
     var defer = libQ.defer();
-    // self.handleEvent(SYSTEM_SHUTDOWN);
+    self.handleEvent(SYSTEM_SHUTDOWN);
     defer.resolve();
     return libQ.resolve();
 };
@@ -144,13 +143,9 @@ IRControl.prototype.getUIConfig = function () {
     var lang_code = self.commandRouter.sharedVars.get("language_code");
     self.log(`language_code ${lang_code}`);
     var UIConfigFile;
-
-    // Depending on our pi version change the number of pins available in GUI
-    // todo UIConfig.json will need to be changed according to the amplifier's stuff
     UIConfigFile = __dirname + "/UIConfig.json";
     self.log(`UI Config file ${UIConfigFile}`);
 
-    // add Hungarian
     self.commandRouter.i18nJson(
         __dirname + "/i18n/strings_" + lang_code + ".json",
         __dirname + "/i18n/strings_en.json",
@@ -173,8 +168,7 @@ IRControl.prototype.getUIConfig = function () {
 IRControl.prototype.saveConfig = function (data) {
     // when we save the config, we need to save the volume state of MPD
     var self = this;
-    config.set('volume', data['amplifierType']);
-    config.set('amplifierOn', data['amplifierType']);
+    config.set('amplifierType', data['amplifierType']);
     self.log("Saving config");
     self.commandRouter.pushToastMessage('success', self.getI18nString("PLUGIN_CONFIGURATION"), self.getI18nString("SETTINGS_SAVED"));
 };
@@ -186,6 +180,17 @@ IRControl.prototype.saveConfig = function (data) {
 IRControl.prototype.log = function (s) {
     var self = this;
     self.logger.info("[amplifier_remote_Control] " + s);
+}
+
+// Output to log
+IRControl.prototype.debug = function (s) {
+    var self = this;
+    self.logger.debug("[amplifier_remote_Control] " + s);
+}
+
+IRControl.prototype.error = function (s) {
+    var self = this;
+    self.logger.error("[amplifier_remote_Control] " + s);
 }
 
 
@@ -257,12 +262,9 @@ IRControl.prototype.volumeListener = function () {
     self.log("sent getState");
     socket.on("connect", function(){
         socket.on("pushState", function(state) {
-            self.log(`Received ${state}`);
             if (state && state.volume !== undefined && state.mute !== undefined && Number.isInteger(state.volume)) {
                 let volume = parseInt(state.volume);
-                self.log(`here is a new volume: ${volume}`);
                 let mute = state.mute;
-                self.log(`here is a new state: ${state.status}`);
                 if (mute) {
                     volume = 0;
                 }
@@ -276,17 +278,17 @@ IRControl.prototype.volumeListener = function () {
 // (might not always be a play or pause action)
 IRControl.prototype.statusChanged = function (state) {
     var self = this;
-    self.log('State is like ' + String(state.status));
+    self.debug('State is like ' + String(state.status));
     if (state.status == "play") {
-        self.log("we are playing");
+        self.debug("we are playing");
         self.handleEvent(MUSIC_PLAY, state);
     }
     else if (state.status == "pause") {
-        self.log("we are pausing");
+        self.debug("we are pausing");
         self.handleEvent(MUSIC_PAUSE, state);
     }
     else if (state.status == "stop") {
-        self.log("we are stopping");
+        self.debug("we are stopping");
         self.handleEvent(MUSIC_STOP, state);
     }
 }
@@ -295,7 +297,7 @@ IRControl.prototype.statusChanged = function (state) {
 // handleevent needs to look at the event and check all the stuff that mpd has to offer
 IRControl.prototype.handleEvent = function (e, state = {"volume": 1}) {
     var self = this;
-    self.log('handleEvent was called for ' + e);
+    self.log('handleEvent was called for ' + e + ' volume:' + state.volume);
     if (e == MUSIC_PAUSE) {
         self.turnOffAmplifierWithDelay();
     }
@@ -316,19 +318,21 @@ IRControl.prototype.handleEvent = function (e, state = {"volume": 1}) {
 }
 
 
+// this function will turn off the amplifier
 IRControl.prototype.turnItOff = function () {
     var self = this;
-    lirc.sendOnce(devicename, stop_button).catch(error => {
-        self.log('Sending:' + stop_button);
-        if (error) self.log('error occurred during turnItOff'+ String(error));
+    self.debug(`Sending ${this.devicename} the button ${stop_button}`)
+    lirc.sendOnce(this.devicename, stop_button).catch(error => {
+        if (error) self.error('error occurred during turnItOff'+ String(error));
     });
 }
 
+// this function will turn on the amplifier
 IRControl.prototype.turnItOn = function () {
     var self = this;
-    lirc.sendOnce(devicename, start_button).catch(error => {
-        self.log('Sending:' + start_button);
-        if (error) self.log('error occurred during turnItOn'+ String(error));
+    self.debug(`Sending ${this.devicename} the button ${start_button}`)
+    lirc.sendOnce(this.devicename, start_button).catch(error => {
+        if (error) self.error('error occurred during turnItOn'+ String(error));
     });
 }
 
@@ -344,10 +348,8 @@ IRControl.prototype.turnOnAmplifier = function () {
 
 IRControl.prototype.setVolume = async function (newvolume) {
     var self = this;
-
     var indexer = 0;
     self.desiredVolume = newvolume;
-
     if (self.savedDesiredConfig.volume<0) {
         self.log(`We are starting up. Let's set the savedDesiredConfig to the ${newvolume}`);
         self.savedDesiredConfig.volume = newvolume; 
@@ -356,12 +358,10 @@ IRControl.prototype.setVolume = async function (newvolume) {
         self.log('Waiting for operation in progress' + String(keypressTimeOut));
         await new Promise(resolve => setTimeout(resolve, keypressTimeOut));
     }
-
     if (self.desiredVolume < self.savedDesiredConfig.volume) {
         self.volumeOperationInProgress = true;
         indexer = self.savedDesiredConfig.volume - self.desiredVolume;
         self.log("Decreasing volume from " + self.savedDesiredConfig.volume + " to " + self.desiredVolume + ' in ' + indexer + ' steps ');
-
         for (var i = 0; i < indexer; i++) {
             self.decreaseVolume();
             self.log('decreasing Waiting for ' + String(keypressTimeOut));
@@ -385,8 +385,9 @@ IRControl.prototype.setVolume = async function (newvolume) {
 
 IRControl.prototype.increaseVolume = function () {
     var self = this;
-    lirc.sendOnce(devicename, vol_up_button).catch(error => {
-        if (error) self.log('error occurred during increaseVolumio'+ String(error));
+    self.debug(`Sending ${self.devicename} the button ${vol_up_button}`)
+    lirc.sendOnce(self.devicename, vol_up_button).catch(error => {
+        if (error) self.error('error occurred during increaseVolumio'+ String(error));
     });
     self.log('Increased volume by a bit');
     self.savedDesiredConfig.volume = self.savedDesiredConfig.volume + 1;
@@ -394,11 +395,11 @@ IRControl.prototype.increaseVolume = function () {
 
 IRControl.prototype.decreaseVolume = function () {
     var self = this;
-    lirc.sendOnce(devicename, vol_down_button).catch(error => {
-        if (error) self.log('error occurred during decreaseVolume'+ String(error));
-        self.log('Decreased volume by a bit');
+    self.debug(`Sending ${self.devicename} the button ${vol_down_button}`)
+    lirc.sendOnce(self.devicename, vol_down_button).catch(error => {
+        if (error) self.error('error occurred during decreaseVolume'+ String(error));
     });
-    self.log('decreased volume by a bit');
+    self.log('Decreased volume by a bit');
     self.savedDesiredConfig.volume = self.savedDesiredConfig.volume - 1;
 }
 
