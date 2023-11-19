@@ -25,7 +25,7 @@ var vol_up_button = 'KEY_VOLUMEUP';
 
 // behavior related settings -
 var stopToTurnOffDelay = 60;
-var keypressTimeOut = 200;
+var keypressTimeOut = 600;
 
 
 module.exports = IRControl;
@@ -54,6 +54,7 @@ IRControl.prototype.onVolumioStart = function () {
     this.log('onVolumioStart');
     var configFile = self.commandRouter.pluginManager.getConfigurationFile(self.context, "config.json");
     this.config = new (require('v-conf'))();
+    // todo itt baj van 
     this.config.loadFile(configFile);
     this.devicename = 'receiver';
     this.log('Configuration has been loaded in:' + JSON.stringify(config));
@@ -295,6 +296,7 @@ IRControl.prototype.statusChanged = function (state) {
 
 // An event has happened so do something about it
 // handleevent needs to look at the event and check all the stuff that mpd has to offer
+// todo refactor to multiple methods 
 IRControl.prototype.handleEvent = function (e, state = {"volume": 1}) {
     var self = this;
     self.log('handleEvent was called for ' + e + ' volume:' + state.volume);
