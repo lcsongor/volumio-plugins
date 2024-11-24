@@ -25,7 +25,7 @@ var vol_up_button = 'KEY_VOLUMEUP';
 
 // behavior related settings -
 var stopToTurnOffDelay = 60;
-var keypressTimeOut = 600;
+var keypressTimeOut = 300;
 
 
 module.exports = IRControl;
@@ -349,40 +349,29 @@ IRControl.prototype.turnOnAmplifier = function () {
 
 
 IRControl.prototype.setVolume = async function (newvolume) {
-    var self = this;
     var indexer = 0;
-    self.desiredVolume = newvolume;
-    if (self.savedDesiredConfig.volume<0) {
-        self.log(`We are starting up. Let's set the savedDesiredConfig to the ${newvolume}`);
-        self.savedDesiredConfig.volume = newvolume; 
+    this.desiredVolume = newvolume;
+    this.log(`The desired volume has changed to ${newvolume}`);
+    if (this.savedDesiredConfig.volume<0) {
+        this.log(`We are starting up. Let's set the savedDesiredConfig to the ${newvolume}`);
+        this.savedDesiredConfig.volume = newvolume; 
     } else {
-    while (self.volumeOperationInProgress) {
-        self.log('Waiting for operation in progress' + String(keypressTimeOut));
+    while (this.desiredVolume != this.savedDesiredConfig.volume) {
+    if (this.desiredVolume < this.savedDesiredConfig.volume) {
+        this.decreaseVolume();
+        this.log('decreasing Waiting for ' + String(keypressTimeOut));
+        this.log("Decreasing volume from " + this.savedDesiredConfig.volume + " to " + this.desiredVolume );
         await new Promise(resolve => setTimeout(resolve, keypressTimeOut));
     }
-    if (self.desiredVolume < self.savedDesiredConfig.volume) {
-        self.volumeOperationInProgress = true;
-        indexer = self.savedDesiredConfig.volume - self.desiredVolume;
-        self.log("Decreasing volume from " + self.savedDesiredConfig.volume + " to " + self.desiredVolume + ' in ' + indexer + ' steps ');
-        for (var i = 0; i < indexer; i++) {
-            self.decreaseVolume();
-            self.log('decreasing Waiting for ' + String(keypressTimeOut));
-            await new Promise(resolve => setTimeout(resolve, keypressTimeOut));
+    if (this.desiredVolume > this.savedDesiredConfig.volume) {
+        this.increaseVolume();
+        this.log('increasing Waiting for ' + String(keypressTimeOut));
+        await new Promise(resolve => setTimeout(resolve, keypressTimeOut));
         }
     }
-    if (self.desiredVolume > self.savedDesiredConfig.volume) {
-        self.volumeOperationInProgress = true;
-        indexer = self.desiredVolume - self.savedDesiredConfig.volume;
-        self.log("Increasing volume from " + self.savedDesiredConfig.volume + " to " + self.desiredVolume + ' in ' + indexer + ' steps');
-        for (var i = 0; i < indexer; i++) {
-            self.increaseVolume();
-            self.log('increasing Waiting for ' + String(keypressTimeOut));
-            await new Promise(resolve => setTimeout(resolve, keypressTimeOut));
-        }
+    this.volumeOperationInProgress = false;
+    this.savedDesiredConfig = {"volume": this.desiredVolume};
     }
-    }
-    self.volumeOperationInProgress = false;
-    self.savedDesiredConfig = {"volume": self.desiredVolume};
 }
 
 IRControl.prototype.increaseVolume = function () {
