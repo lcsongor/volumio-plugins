@@ -12,7 +12,7 @@
 			"prettyName": "Amplifier controller",
 			"icon": "fa-microchip",
 			"plugin_type": "system_controller",
-			"boot_priority": 1
+			"boot_priority": 10
 	},
 	"dependencies": {
 			"child_process": "",
@@ -20,8 +20,12 @@
 			"kew": "^0.7.0",
 			"lirc-client": "^2.0.0",
 			"observe": "^1.4.1",
-			"sleep": "^5.1.1",
-			"socket.io-client": "^4.6.1",
-			"v-conf": "^1.4.0"
-	}
+			"socket.io-client": "2.1.1",
+			"v-conf": "^1.4.2"
+	},
+	"engines": {
+		"volumio": ">=3",
+		"node": ">=14.15.4"
+	},
+	"repository": "https://github.dev/lcsongor/volumio-plugins"
 }
