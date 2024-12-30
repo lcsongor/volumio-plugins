@@ -1,10 +1,10 @@
 # GPIO Control
  
-- This plugin can react to Volumio events and control GPIO pins.  The events are: system startup, system shutdown, music start, music stop and music pause.
+- This plugin can control a Yamaha Amplifier model RX-V440.  The events are: system startup, system shutdown, music start, music stop and music pause.
 
 - You can use this plugin to turn on an LED when a song starts playing or even control an amplifier when Volumio starts!
 
-- This has been extensively tested and runs stable on a RPi Zero.
+- This has been extensively tested and runs stable on a Raspberry Pi 3 Model B 
  
 - This plugin is based on tomatpasser's gpio-buttons https://github.com/tomatpasser/gpio-buttons/
  
@@ -12,9 +12,8 @@
  
 # Instructions
  
-- In the configuration pages Volumio events can to enabled to control a defined GPIO pin and set its state.
+- Configuration pages don't really do much. 
  
-- The pin numbers are GPIO pin numbers.  Always double check what pins you are writing too.  The default value for each pin is shown below.
  
 __Remember never to connect 5V to the GPIO pins, only 3.3V or ground.__
  
