@@ -26,6 +26,7 @@ var vol_up_button = 'KEY_VOLUMEUP';
 // behavior related settings -
 var stopToTurnOffDelay = 60;
 var keypressTimeOut = 300;
+var laststate = {"volume": -1, "mute": false, "status": "jiberish"};
 
 
 module.exports = IRControl;
@@ -264,12 +265,22 @@ IRControl.prototype.volumeListener = function () {
     socket.on("connect", function(){
         socket.on("pushState", function(state) {
             if (state && state.volume !== undefined && state.mute !== undefined && Number.isInteger(state.volume)) {
+                // cast state to json string
                 let volume = parseInt(state.volume);
                 let mute = state.mute;
                 if (mute) {
                     volume = 0;
                 }
-                self.statusChanged(state);
+                if (laststate.volume == volume && laststate.mute == mute && laststate.status == state.status) {
+                    self.debug("volumeListener: State is the same as before, not doing anything");
+                } else {
+                    self.log("volumeListener: State is different from before, doing something");     
+                    laststate.volume = volume;
+                    laststate.mute = mute;
+                    laststate.status = state.status;
+                    self.log("volumeListener: Received state: " + JSON.stringify(state));
+                    self.statusChanged(state);
+                }
             }
         });
     });
@@ -311,7 +322,7 @@ IRControl.prototype.handleEvent = function (e, state = {"volume": 1}) {
         self.setVolume(state.volume);
     }
     if (e == SYSTEM_SHUTDOWN) {
-        self.self.turnItOff();
+        self.turnItOff();
     }
     if (e == SYSTEM_STARTUP) {
         self.log('This is startup - we assume that the amplifier is stopped.');
