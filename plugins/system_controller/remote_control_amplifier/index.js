@@ -310,7 +310,7 @@ IRControl.prototype.statusChanged = function (state) {
 // todo refactor to multiple methods 
 IRControl.prototype.handleEvent = function (e, state = {"volume": 1}) {
     var self = this;
-    self.log('handleEvent was called for ' + e + ' volume:' + state.volume);
+    self.log('handleEvent was called for ' + e + ' volume:' + state.volume + ' mute:' + state.mute+ ' status:' + state.status);
     if (e == MUSIC_PAUSE) {
         self.turnOffAmplifierWithDelay();
     }
@@ -368,14 +368,20 @@ IRControl.prototype.setVolume = async function (newvolume) {
         this.savedDesiredConfig.volume = newvolume; 
     } else {
     while (this.desiredVolume != this.savedDesiredConfig.volume) {
+        
     if (this.desiredVolume < this.savedDesiredConfig.volume) {
-        this.decreaseVolume();
+        let delta_volume = this.savedDesiredConfig.volume - this.desiredVolume;
+        this.log('decreasing volume by ' + String(delta_volume));
+        this.volumeOperationInProgress = true;
+        this.decreaseVolume(delta_volume);
         this.log('decreasing Waiting for ' + String(keypressTimeOut));
         this.log("Decreasing volume from " + this.savedDesiredConfig.volume + " to " + this.desiredVolume );
         await new Promise(resolve => setTimeout(resolve, keypressTimeOut));
     }
     if (this.desiredVolume > this.savedDesiredConfig.volume) {
-        this.increaseVolume();
+        let delta_volume = this.desiredVolume - this.savedDesiredConfig.volume; 
+        this.log('increasing volume by ' + String(delta_volume));
+        this.increaseVolume(delta_volume);
         this.log('increasing Waiting for ' + String(keypressTimeOut));
         await new Promise(resolve => setTimeout(resolve, keypressTimeOut));
         }
@@ -385,35 +391,35 @@ IRControl.prototype.setVolume = async function (newvolume) {
     }
 }
 
-IRControl.prototype.increaseVolume = function () {
+IRControl.prototype.increaseVolume = function (delta_volume) {
     var self = this;
     self.debug(`Sending ${self.devicename} the button ${vol_up_button}`)
-    lirc.sendOnce(self.devicename, vol_up_button).catch(error => {
+    lirc.sendOnce(self.devicename, vol_up_button, delta_volume).catch(error => {
         if (error) self.error('error occurred during increaseVolumio'+ String(error));
     });
     self.log('Increased volume by a bit');
-    self.savedDesiredConfig.volume = self.savedDesiredConfig.volume + 1;
+    self.savedDesiredConfig.volume = self.savedDesiredConfig.volume + delta_volume;
 }
 
-IRControl.prototype.decreaseVolume = function () {
+IRControl.prototype.decreaseVolume = function (delta_volume) {
     var self = this;
     self.debug(`Sending ${self.devicename} the button ${vol_down_button}`)
-    lirc.sendOnce(self.devicename, vol_down_button).catch(error => {
+    lirc.sendOnce(self.devicename, vol_down_button,delta_volume).catch(error => {
         if (error) self.error('error occurred during decreaseVolume'+ String(error));
     });
     self.log('Decreased volume by a bit');
-    self.savedDesiredConfig.volume = self.savedDesiredConfig.volume - 1;
+    self.savedDesiredConfig.volume = self.savedDesiredConfig.volume - delta_volume;
 }
 
 IRControl.prototype.turnOffAmplifierWithDelay = async function () {
     var self = this;
+    self.log('turnOffAmplifierWithDelay was called');
     if (!self.stopInProgress) {
         self.log('Playback was stopped, amplifier will be turned off in ' + stopToTurnOffDelay + ' seconds');
         self.stopInProgress = true;
         self.stopRequested = true;
         return new Promise(function (resolve, reject) {
             setTimeout(() => {
-                self.log('Stopping the amplifier');
                 if (self.stopRequested === true) {
                     self.turnItOff();
                     self.log('Amplifier was turned off');
