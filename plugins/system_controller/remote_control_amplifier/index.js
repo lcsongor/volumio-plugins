@@ -431,6 +431,7 @@ IRControl.prototype.turnOffAmplifierWithDelay = async function () {
                     self.log('Stopping was cancelled');
                     self.stopRequested = false;
                     self.stopInProgress = false;
+                    resolve();
                 }
             }, stopToTurnOffDelay * 1000);
         })
