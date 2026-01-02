@@ -55,10 +55,31 @@ IRControl.prototype.onVolumioStart = function () {
     this.log('onVolumioStart');
     var configFile = self.commandRouter.pluginManager.getConfigurationFile(self.context, "config.json");
     this.config = new (require('v-conf'))();
-    // todo itt baj van 
     this.config.loadFile(configFile);
-    this.devicename = 'receiver';
-    this.log('Configuration has been loaded in:' + JSON.stringify(config));
+
+    // Initialize runtime settings from stored config (with sensible defaults)
+    self.devicename = self.config.get('deviceName', 'receiver');
+    start_button = self.config.get('startButton', start_button);
+    stop_button = self.config.get('stopButton', stop_button);
+    vol_up_button = self.config.get('volUpButton', vol_up_button);
+    vol_down_button = self.config.get('volDownButton', vol_down_button);
+    self.powerOnOnPlay = self.config.get('powerOnOnPlay', true);
+    self.powerOffOnStop = self.config.get('powerOffOnStop', true);
+    self.powerOffOnPause = self.config.get('powerOffOnPause', false);
+    stopToTurnOffDelay = Number(self.config.get('powerOffDelay', stopToTurnOffDelay)) || stopToTurnOffDelay;
+
+    this.log('Configuration loaded: ' + JSON.stringify({
+        deviceName: self.devicename,
+        startButton: start_button,
+        stopButton: stop_button,
+        volUpButton: vol_up_button,
+        volDownButton: vol_down_button,
+        powerOnOnPlay: self.powerOnOnPlay,
+        powerOffOnStop: self.powerOffOnStop,
+        powerOffOnPause: self.powerOffOnPause,
+        powerOffDelay: stopToTurnOffDelay
+    }));
+
     this.amplifierOn = false;
     this.log("Initialized");
     return libQ.resolve();
@@ -153,7 +174,23 @@ IRControl.prototype.getUIConfig = function () {
         __dirname + "/i18n/strings_en.json",
         UIConfigFile)
         .then(function (uiconf) {
-            uiconf.sections[0].content[0].value = self.config.get('amplifierType','');
+            // populate UI fields with saved config values
+            try {
+                var g = function(k, d) { return self.config.get(k, d); };
+                // switches
+                self.setSwitchElement(uiconf, 'powerOnOnPlay', g('powerOnOnPlay', true));
+                self.setSwitchElement(uiconf, 'powerOffOnStop', g('powerOffOnStop', true));
+                self.setSwitchElement(uiconf, 'powerOffOnPause', g('powerOffOnPause', false));
+                // text fields
+                el = self.getUIElement(uiconf, 'deviceName'); if (el) el.value = g('deviceName','receiver');
+                el = self.getUIElement(uiconf, 'startButton'); if (el) el.value = g('startButton','KEY_POWER');
+                el = self.getUIElement(uiconf, 'stopButton'); if (el) el.value = g('stopButton','KEY_POWER2');
+                el = self.getUIElement(uiconf, 'volUpButton'); if (el) el.value = g('volUpButton','KEY_VOLUMEUP');
+                el = self.getUIElement(uiconf, 'volDownButton'); if (el) el.value = g('volDownButton','KEY_VOLUMEDOWN');
+                el = self.getUIElement(uiconf, 'powerOffDelay'); if (el) el.value = String(g('powerOffDelay', stopToTurnOffDelay));
+            } catch (e) {
+                self.log('Error populating UI config: '+e);
+            }
             self.log(`getUIConfig sending uiconf`);
             defer.resolve(uiconf);
         })
@@ -168,9 +205,77 @@ IRControl.prototype.getUIConfig = function () {
 
 // Save config
 IRControl.prototype.saveConfig = function (data) {
-    // when we save the config, we need to save the volume state of MPD
     var self = this;
-    config.set('amplifierType', data['amplifierType']);
+
+    // Ensure we have a config instance
+    if (!self.config) self.config = new (require('v-conf'))();
+
+    // Helper to extract primitive value from UI input objects
+    var raw = function (v, def) {
+        if (v === undefined || v === null) return def;
+        if (typeof v === 'object' && v.hasOwnProperty('value')) return v.value;
+        return v;
+    };
+
+    var deviceName = raw(data.deviceName, 'RAV300');
+    var startButton = raw(data.startButton, start_button);
+    var stopButton = raw(data.stopButton, stop_button);
+    var volUpButton = raw(data.volUpButton, vol_up_button);
+    var volDownButton = raw(data.volDownButton, vol_down_button);
+
+    var powerOnOnPlay = !!raw(data.powerOnOnPlay, true);
+    var powerOffOnStop = !!raw(data.powerOffOnStop, true);
+    var powerOffOnPause = !!raw(data.powerOffOnPause, false);
+
+    var delayRaw = raw(data.powerOffDelay, stopToTurnOffDelay);
+    var delay = parseInt(delayRaw, 10);
+    if (isNaN(delay) || delay < 0) delay = stopToTurnOffDelay;
+
+    // Persist primitive values into the config storage
+    self.config.set('deviceName', deviceName);
+    self.config.set('startButton', startButton);
+    self.config.set('stopButton', stopButton);
+    self.config.set('volUpButton', volUpButton);
+    self.config.set('volDownButton', volDownButton);
+    self.config.set('powerOnOnPlay', powerOnOnPlay);
+    self.config.set('powerOffOnStop', powerOffOnStop);
+    self.config.set('powerOffOnPause', powerOffOnPause);
+    self.config.set('powerOffDelay', delay);
+
+    // Apply changes immediately to runtime variables
+    self.devicename = deviceName;
+    start_button = startButton;
+    stop_button = stopButton;
+    vol_up_button = volUpButton;
+    vol_down_button = volDownButton;
+    self.powerOnOnPlay = powerOnOnPlay;
+    self.powerOffOnStop = powerOffOnStop;
+    self.powerOffOnPause = powerOffOnPause;
+    stopToTurnOffDelay = delay;
+
+    // Persist configuration to disk (config.json) as plain key/value pairs
+    try {
+        var configFile = self.commandRouter.pluginManager.getConfigurationFile(self.context, "config.json");
+        var toWrite = {
+            deviceName: deviceName,
+            startButton: startButton,
+            stopButton: stopButton,
+            volUpButton: volUpButton,
+            volDownButton: volDownButton,
+            powerOnOnPlay: powerOnOnPlay,
+            powerOffOnStop: powerOffOnStop,
+            powerOffOnPause: powerOffOnPause,
+            powerOffDelay: delay
+        };
+        // backup previous config
+        try { if (fs.existsSync(configFile)) fs.copyFileSync(configFile, configFile + '.bak.' + (new Date()).toISOString().replace(/[:.]/g, '-')); } catch (e) { /* non-fatal */ }
+        fs.writeJsonSync(configFile, toWrite, {spaces: 2});
+        self.log('Configuration saved to ' + configFile);
+    } catch (e) {
+        self.log('Failed writing configuration file: ' + e);
+        self.commandRouter.pushToastMessage('error', self.getI18nString("PLUGIN_CONFIGURATION"), 'Failed to save configuration to file');
+    }
+
     self.log("Saving config");
     self.commandRouter.pushToastMessage('success', self.getI18nString("PLUGIN_CONFIGURATION"), self.getI18nString("SETTINGS_SAVED"));
 };
@@ -224,8 +329,30 @@ IRControl.prototype.getI18nString = function (key) {
 IRControl.prototype.getUIElement = function (obj, field) {
     var self = this;
     self.log('getUIElement was called');
-    var lookfor = JSON.parse('{"id":"' + field + '"}');
-    return obj.sections[0].content.findItem(lookfor);
+
+    function searchContent(content) {
+        if (!content || !Array.isArray(content)) return null;
+        for (let i = 0; i < content.length; i++) {
+            const el = content[i];
+            if (!el) continue;
+            if (el.id === field) return el;
+            if (el.content && Array.isArray(el.content)) {
+                const found = searchContent(el.content);
+                if (found) return found;
+            }
+        }
+        return null;
+    }
+
+    if (!obj || !Array.isArray(obj.sections)) return null;
+    for (let s = 0; s < obj.sections.length; s++) {
+        const sec = obj.sections[s];
+        if (!sec) continue;
+        const found = searchContent(sec.content);
+        if (found) return found;
+    }
+
+    return null;
 }
 
 // Populate switch UI element
