@@ -40,29 +40,57 @@
 
 ## Configuration & UI ⚙️
 
-- The plugin exposes a single `amplifierType` setting in the UI (stored in `config.json`) for display/selection.
-- Advanced behavior (keys, delays) is currently configured in `index.js` constants; to change them persistently edit the source or add UI bindings.
+The plugin provides a concise UI to configure how it talks to your amplifier. Settings are saved to the plugin `config.json` as plain key/value pairs (a backup of previous config is created on each save) and are applied immediately when saved.
+
+UI fields and their behavior:
+
+- **Device** (`deviceName`) — LIRC device name to which commands are sent (default: `receiver` or `RAV300` in example UI).
+- **Start Button** (`startButton`) — LIRC key name used to turn the device on (default: `KEY_POWER`).
+- **Stop Button** (`stopButton`) — LIRC key name used to turn the device off (default: `KEY_POWER2`).
+- **Volume Up / Down Buttons** (`volUpButton`, `volDownButton`) — LIRC key names used for incremental volume control (defaults: `KEY_VOLUMEUP` / `KEY_VOLUMEDOWN`).
+- **Power on on Play** (`powerOnOnPlay`) — boolean: automatically power on the amplifier when playback starts.
+- **Power off on Stop** (`powerOffOnStop`) — boolean: power off when playback stops.
+- **Power off on Pause** (`powerOffOnPause`) — boolean: power off when playback is paused.
+- **Power-off Delay (s)** (`powerOffDelay`) — number of seconds to wait before powering off (default: `60`).
+
+Notes:
+- The UI accepts both plain values and UI widget objects; the plugin normalizes and stores primitive values in `config.json`.
 
 ---
 
 ## Requirements 📋
 
-- Volumio (plugin framework).
-- LIRC installed and `lircd` running with your IR device configured (`/var/run/lirc/lircd`).
-- `sampleworkingconfig/` contains example `asound.conf` and LIRC config files used by the installer.
+- Volumio (tested with version 4.0.0+).
+- Infrared (IR) transmitter hardware connected to your Volumio device - trasmitter must be connected to GPIO pin number 18  PWM (default for LIRC on Volumio).
 
 ---
+
+## IR board setup 📡
+
+- Parts list (example):
+    - 1x IR LED (e.g., TSAL6200)
+    - 1x NPN Transistor (e.g., 2N2222)
+    - 1x Resistor 100-220 Ohm (for LED current limiting)
+    - 1x Resistor 4.7k Ohm (for transistor base)
+    - 1x Diode (e.g., 1N4148) (optional, for back-EMF protection)
+    - Breadboard and jumper wires
+- Wiring:
+  - Connect the IR LED anode (longer leg) to the PWM GPIO pin (GPIO18).
+  - Connect the IR LED cathode (shorter leg) to the collector of the NPN transistor.
+  - Connect the emitter of the NPN transistor to ground (GND).
+  - Connect a resistor (100-220 Ohm) between the GPIO pin and the base of the NPN transistor.
+  - Connect a resistor (4.7k Ohm) between the base of the NPN transistor and 3.3V power supply.
+  - (Optional) Connect a diode across the IR LED (cathode to anode) for back-EMF protection.
+- LIRC configuration:
+    - The lircd daeamon is configured upon installation of the plugin to use GPIO18 for IR transmission.
+    - The plugin comes with the default LIRC configuration for a Yamaha RAV300 remote; modify as needed for your amplifier. New remote definitions need to be copied to the LIRC config directory (usually `/etc/lirc/lircd.conf.d/`).
+---
+
 
 ## Installation (short) ▶️
 
 Follow the standard Volumio plugin installation process: https://developers.volumio.com/plugins/plugins-overview
 
-From the plugin directory you can run the included installer:
-
-```bash
-sudo bash install.sh        # deploys configs, restarts lircd if needed, may reboot if /boot/userconfig.txt changed
-sudo bash install.sh -n     # same but do NOT reboot
-```
 
 ---
 
