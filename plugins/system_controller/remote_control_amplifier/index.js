@@ -439,17 +439,33 @@ IRControl.prototype.handleEvent = function (e, state = {"volume": 1}) {
     var self = this;
     self.log('handleEvent was called for ' + e + ' volume:' + state.volume + ' mute:' + state.mute+ ' status:' + state.status);
     if (e == MUSIC_PAUSE) {
+        if (self.powerOffOnPause == true) {
         self.turnOffAmplifierWithDelay();
+        } else {
+            self.log('powerOffOnPause is false - not turning off amplifier on pause');
+        }
     }
     if (e == MUSIC_STOP) {
+        if (self.powerOffOnStop == true) {
         self.turnOffAmplifierWithDelay();
+        } else {
+            self.log('powerOffOnStop is false - not turning off amplifier on stop');
+        }
     }
     if (e == MUSIC_PLAY) {
+            if (self.powerOnOnPlay == true) {
         self.turnOnAmplifier();
         self.setVolume(state.volume);
+            } else {
+                self.log('powerOnOnPlay is false - not turning on amplifier on play');
+            }
     }
     if (e == SYSTEM_SHUTDOWN) {
+        if (self.powerOffOnStop == true) {
         self.turnItOff();
+        } else {
+            self.log('powerOffOnStop is false - not turning off amplifier on shutdown');
+        }
     }
     if (e == SYSTEM_STARTUP) {
         self.log('This is startup - we assume that the amplifier is stopped.');
@@ -461,10 +477,12 @@ IRControl.prototype.handleEvent = function (e, state = {"volume": 1}) {
 // this function will turn off the amplifier
 IRControl.prototype.turnItOff = function () {
     var self = this;
+   
     self.debug(`Sending ${self.devicename} the button ${stop_button}`)
     lirc.sendOnce(self.devicename, stop_button).catch(error => {
         if (error) self.error('error occurred during turnItOff'+ String(error));
     });
+
 }
 
 // this function will turn on the amplifier
