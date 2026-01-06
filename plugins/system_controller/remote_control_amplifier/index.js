@@ -182,7 +182,7 @@ IRControl.prototype.getUIConfig = function () {
                 self.setSwitchElement(uiconf, 'powerOffOnStop', g('powerOffOnStop', true));
                 self.setSwitchElement(uiconf, 'powerOffOnPause', g('powerOffOnPause', false));
                 // text fields
-                el = self.getUIElement(uiconf, 'deviceName'); if (el) el.value = g('deviceName','receiver');
+                let el = self.getUIElement(uiconf, 'deviceName'); if (el) el.value = g('deviceName','RAV300');
                 el = self.getUIElement(uiconf, 'startButton'); if (el) el.value = g('startButton','KEY_POWER');
                 el = self.getUIElement(uiconf, 'stopButton'); if (el) el.value = g('stopButton','KEY_POWER2');
                 el = self.getUIElement(uiconf, 'volUpButton'); if (el) el.value = g('volUpButton','KEY_VOLUMEUP');
@@ -384,32 +384,76 @@ IRControl.prototype.setSelectElementStr = function (obj, field, value) {
 // this file will store everything that was taken out of index.js 
 IRControl.prototype.volumeListener = function () {
     var self = this;
-    self.log("Starting volumeListener before connect");
-    socket = io.connect('http://localhost:3000');
-    self.log("volumeListener after connect socket.");
-    socket.emit("getState", "");
-    self.log("sent getState");
-    socket.on("connect", function(){
-        socket.on("pushState", function(state) {
-            if (state && state.volume !== undefined && state.mute !== undefined && Number.isInteger(state.volume)) {
-                // cast state to json string
-                let volume = parseInt(state.volume);
-                let mute = state.mute;
-                if (mute) {
-                    volume = 0;
-                }
-                if (laststate.volume == volume && laststate.mute == mute && laststate.status == state.status) {
-                    self.debug("volumeListener: State is the same as before, not doing anything");
-                } else {
-                    self.log("volumeListener: State is different from before, doing something");     
-                    laststate.volume = volume;
-                    laststate.mute = mute;
-                    laststate.status = state.status;
-                    self.log("volumeListener: Received state: " + JSON.stringify(state));
-                    self.statusChanged(state);
-                }
+    self.log("Starting volumeListener (socket.io)");
+
+    // Clean up existing socket if any
+    try {
+        if (socket) {
+            socket.removeAllListeners();
+            socket.close();
+        }
+    } catch (e) { /* ignore */ }
+
+    // Prefer websocket transport to avoid polling parser issues
+    socket = io.connect('http://localhost:3000', {
+        reconnection: true,
+        transports: ['websocket'],
+        timeout: 20000
+    });
+
+    socket.on('connect', function() {
+        self.log('socket.io connected');
+        try { socket.emit('getState'); self.log('sent getState'); } catch (e) { self.log('Failed to emit getState: '+e); }
+    });
+
+    socket.on('connect_error', function(err) {
+        self.error('socket.io connect_error: ' + String(err));
+        // Detect common version mismatch message and provide guidance
+        try {
+            var msg = (err && err.message) ? err.message : String(err);
+            if (msg.indexOf('v2.x') !== -1 && msg.indexOf('v3.x') !== -1) {
+                self.error('Socket.IO version mismatch detected between client and server; consider using socket.io-client v2.x or updating server to v3.x+');
             }
-        });
+        } catch (e) { /* ignore */ }
+
+        // Fallback: attempt polling transport if websocket failed for non-version reasons
+        try {
+            if (socket && socket.io && socket.io.opts && Array.isArray(socket.io.opts.transports) && socket.io.opts.transports.includes('websocket')) {
+                self.log('Attempting fallback to polling transport');
+                try { socket.disconnect(); } catch(e){}
+                socket = io.connect('http://localhost:3000', {reconnection: true, transports: ['polling'], timeout: 20000});
+            }
+        } catch (e) { self.error('Fallback attempt failed: '+e); }
+    });
+
+    socket.on('disconnect', function(reason) {
+        self.log('socket.io disconnected: ' + String(reason));
+    });
+
+    // Ensure single pushState handler and robust processing
+    try { socket.off('pushState'); } catch (e) {}
+    socket.on('pushState', function(state) {
+        self.debug('socket.io pushState received');
+        if (state && state.volume !== undefined && state.mute !== undefined) {
+            const volNum = Number(state.volume);
+            if (Number.isNaN(volNum)) {
+                self.log('pushState: volume is not numeric, ignoring');
+                return;
+            }
+            let volume = parseInt(volNum, 10);
+            let mute = state.mute;
+            if (mute) volume = 0;
+            if (laststate.volume == volume && laststate.mute == mute && laststate.status == state.status) {
+                self.debug('volumeListener: State is the same as before, not doing anything');
+            } else {
+                self.log('volumeListener: State is different from before, doing something');
+                laststate.volume = volume;
+                laststate.mute = mute;
+                laststate.status = state.status;
+                self.log('volumeListener: Received state: ' + JSON.stringify(state));
+                self.statusChanged(state);
+            }
+        }
     });
 };
 

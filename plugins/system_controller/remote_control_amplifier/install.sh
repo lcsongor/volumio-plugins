@@ -1,6 +1,4 @@
 #!/bin/bash
-set -euo pipefail
-
 # parse flags
 NO_REBOOT=0
 while [ "$#" -gt 0 ]; do
@@ -26,9 +24,14 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
-echo "Installing LIRC"
-apt-get update
-apt-get -y install lirc
+echo "Checking for LIRC"
+if command -v lircd >/dev/null 2>&1 || dpkg -s lirc >/dev/null 2>&1; then
+  echo "LIRC is already installed"
+else
+  echo "Installing LIRC"
+  apt-get update
+  apt-get -y install lirc
+fi
 
 
 # locate sampleworkingconfig relative to this install script
