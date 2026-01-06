@@ -122,7 +122,6 @@ Follow the standard Volumio plugin installation process: https://developers.volu
 
 ---
 
-**License:** MIT (or specify)
 
-**Author:** Your Name
+**Author:** Lengyel Csongor
 

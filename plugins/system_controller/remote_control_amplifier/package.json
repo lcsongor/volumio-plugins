@@ -19,7 +19,7 @@
                         "armhf"
                 ],
                 "os": [
-                        "linux"
+                        "bookworm"
                 ],
 	"dependencies": {
 			"child_process": "",
